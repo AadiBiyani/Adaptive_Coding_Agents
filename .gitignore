@@ -1,0 +1,55 @@
+# Credentials and local settings
+.env
+.env.*
+!.env.example
+.aws/
+.ssh/
+.codex/
+.claude/
+secrets/
+credentials/
+*.pem
+*.key
+
+# Private course and stakeholder records
+/inbox/
+/evidence/
+/private/
+/submission.yaml
+/ai-product-milestone-*.zip
+
+# Generated environments and caches
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+*.egg-info/
+/build/
+/dist/
+/swift-module-cache/
+
+# Raw experiments, datasets, model artifacts, and local telemetry
+/runs/
+/logs/
+/data/
+/datasets/
+/checkpoints/
+/models/
+/artifacts/
+/wandb/
+/mlruns/
+/results/raw/
+*.log
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+
+# Keep small reviewed reports/configuration/manifests trackable.
+# Inspect staged content before committing; ignore rules do not remove tracked files.
