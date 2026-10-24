@@ -24,13 +24,13 @@ The three central pieces are a classifier that judges task/progress signals, a r
 
 These are experimental hypotheses, not facts about which model is best. Measure model and effort jointly: a cheaper model with more reasoning could outperform a stronger model with less reasoning, or the reverse. The supported-configuration registry must represent the actual controls for each candidate.
 
-Inputs can include the current request, relevant repository context, investigation/implementation/validation phase, visible tool results, previous failed attempts, observed progress, and remaining budgets. At a new user turn, only information already available at that point is eligible. No hidden test outcomes, future progress, or inaccessible repository information may leak into the decision.
+The original proposal considered the current request, repository context, execution phase, visible tool results, previous failures, progress, and budgets. The later Phase 1 decision restricts classifier task content to the specific current prompt, with fixed category instructions. These broader classifier inputs are optional future research, not the active contract. The policy still uses configuration availability and remaining budgets, and Codex retains its coding session. Hidden checks, reference patches, and future outcomes remain forbidden classifier inputs in any variant.
 
 ## Alternative ways to select a configuration
 
 Direct selection gives Jev descriptions of the eligible configurations and their measured development capabilities, then asks for a configuration choice. Classification followed by a policy asks for task/progress signals and uses rules or a small trained predictor to map them to a route. Both need the same information, valid configuration pool, and execution limits to make the comparison meaningful.
 
-The recommended initial contract is a typed configuration choice followed by deterministic eligibility, budget, and fallback checks. Keep the adapter/policy boundary flexible; comparing direct choice with feature classification is an additional experiment. Classifier confidence is not automatically the probability that a chosen configuration will solve the task; validate any confidence-based policy against observed routing outcomes.
+The owner clarified the initial contract during Phase 1: Jev/OpenJev predicts a task type plus a few signals, and a separate policy chooses the configuration. This supersedes the earlier direct-choice recommendation. Keep category annotations separate from measured configuration outcomes and hold the mapping fixed in the primary tuned/untuned comparison. Direct choice remains an optional later ablation. Category confidence is not automatically the probability that a chosen configuration will solve the task; validate any confidence-based policy against observed routing outcomes.
 
 ## Additional comparison arms
 

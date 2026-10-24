@@ -6,36 +6,38 @@ Updated October 24, 2026. The requirements are agreed; the design below is a rec
 
 Build a dedicated terminal command around the Codex harness. “Like OpenRouter” means a single routing entry point that selects among supported model/effort configurations. A public hosted gateway, billing service, dashboard, and full OpenAI-compatible API are outside the first product.
 
-Use TypeScript in strict mode for the terminal, routing policy, classifier clients, Codex app-server client, and run events. Use Python for task manifests, benchmark orchestration, label construction, OpenJev training, and analysis. The Python runner invokes the same TypeScript coding execution path that the interactive terminal uses; it does not implement a different agent loop.
+The selected design uses Python for the initial terminal, routing policy, classifier clients, Codex app-server client, and run events, as well as task manifests, training, benchmarking, and analysis. Both interactive and benchmark entry points invoke the same coding execution path. The owner clarified that TypeScript was an earlier recommendation, not a required language.
 
-Recommended tooling is Node.js 24 LTS with npm and candidate Python 3.12 environments with uv. Pin exact compatible versions before setup. Keep GPU training/serving and benchmark evaluator dependencies in separate environments. A small TypeScript package, versioned JSON contracts, and file-based artifacts are enough initially; no database or service framework is required. The rationale and sources are in [Research review](research-review.md).
+Use candidate Python 3.12 environments managed with uv; pin compatible versions before setup. Keep GPU training/serving and benchmark evaluator dependencies separate despite sharing a language. Prefer the official Python app-server SDK if its pinned interface covers the required controls; otherwise assess a thin Python protocol adapter before implementation. TypeScript remains a fallback if a specific interface or maintenance advantage warrants it. Versioned JSON contracts and file artifacts suffice initially; no database or service framework is required. See [Research review](research-review.md) for the trade-off.
 
 ## Turn boundary
 
-A user submits a new prompt. Once the preceding turn is complete, capture that prompt and a bounded snapshot of information already available, form the eligible configuration list, classify the state, validate the choice, and start a Codex turn with explicit model and effort. Record the decision and observable execution settings.
+A user submits a new prompt. Once the preceding turn is complete, send only that prompt as Jev/OpenJev's dynamic task input, alongside fixed versioned category questions/definitions. It predicts a task type plus a few signals. A separate policy combines those labels with measured configuration performance, eligible settings, and remaining limits, then selects a GPT model and reasoning effort. Validate the route and start the Codex turn with explicit settings. Record the classification, policy decision, and observable execution separately.
 
 Only new user prompts trigger routing. Internal model responses, tool calls, or failing tests during a turn do not trigger another route in the initial scope. New prompts received during execution are queued; cancellation is a separate explicit action. Do not treat a streamed message or `turn/steer` as a newly configured user turn.
 
-Later routing states may include previous visible failures, progress, and remaining limits. Keep the context-selection and handoff rules fixed across strategies. Prefer deterministic selection/truncation first: a paid summarizer would add cost and another experimental variable. Record any Codex compaction, model-switch instruction, or cache behavior that changes effective context and overhead.
+The classifier input excludes history, repository metadata/content, tool results, previous failures, summaries, and inferred progress. User-pasted details within the current prompt are allowed; do not fetch referenced files or links to augment it. Keep runtime identifiers outside model-visible task content. The policy retains budget/availability information and measured development performance. Codex retains its conversation, repository access, and tools. Keep that coding context construction fixed across strategies and record compaction, switching, and cache effects. The classifier's limited view does not reset the coding session.
 
 ## Components
 
 | Component | Language and responsibility |
 | --- | --- |
-| Terminal client | TypeScript: prompt queue, routing display, streamed output, approvals, cancel/resume. |
-| Context builder | TypeScript: bounded decision-time snapshot with explicit permitted sources and truncation. |
-| Configuration registry | TypeScript/shared data: valid models, efforts, execution limits, access state, and dated rates. |
-| Classifier clients | TypeScript: hosted Jev and OpenJev endpoints behind one typed decision contract. |
-| Routing policy | TypeScript: fixed, rules, learned/classifier decisions, deterministic eligibility and fallback. |
-| Codex client and recorder | TypeScript: one pinned app-server session, execution events, errors, timing, and usage. |
+| Terminal client | Python: prompt queue, routing display, streamed output, approvals, cancel/resume. |
+| Prompt encoder | Python: current prompt plus fixed category instructions; explicit input-size handling and no dynamic context enrichment. |
+| Configuration registry | Shared validated data: models, efforts, execution limits, access state, and dated rates. |
+| Classifier clients | Python: hosted Jev and OpenJev endpoints returning typed task categories/signals under one taxonomy contract. |
+| Routing policy | Python: map classifications to model/effort using measured performance, eligibility, budgets, and fallback; also expose fixed/rule controls. |
+| Codex client and recorder | Python: one pinned app-server session, execution events, errors, timing, and usage. |
 | Benchmark runner | Python: task lifecycle, isolated execution, patch extraction, evaluator invocation, aggregation. |
 | Training and analysis | Python: split/label audits, cheap learned baseline, OpenJev adapters, calibration, statistics. |
 
-The cheap learned policy must be invocable through the same routing interface. Choose a small portable representation or a narrow local process boundary when its model is selected; do not duplicate policy logic in two languages.
+The cheap learned classifier produces the same category records and uses the same downstream policy as the Jev/OpenJev clients. A shared Python implementation avoids translating its feature extraction or decision logic into a second language. Retain process/environment isolation where dependencies require it.
 
 ## Codex integration
 
-Recommend a version-pinned [app-server](https://learn.chatgpt.com/docs/app-server) using stdio JSON-RPC. It supports the custom interactive workflow, approvals, and history we need. The SDK is another supported automation interface, but using app-server for both the product and benchmark client avoids introducing a second execution path.
+Use a version-pinned [app-server](https://learn.chatgpt.com/docs/app-server) using stdio JSON-RPC. It supplies the custom interactive workflow, approvals, and history we need. The [official Python SDK](https://learn.chatgpt.com/docs/codex-sdk) uses that server, retaining the Codex harness. Verify that the chosen distribution exposes the reviewed per-turn settings, approval responses, streaming, interruption, and resume controls, then validate behavior in the planned integration stage.
+
+Phase 0 subsequently inspected the official Python source and selected a thin wrapper over the lower-level typed client with an explicit approval handler, subject to verifying the compatible published distribution. The convenience client's default accepts certain approvals and does not expose that handler through its high-level constructor. Follow the [source findings](technical-discovery.md#documented-codex-interface-candidates), preserve interactive approvals explicitly, and avoid modifying private SDK fields. No live behavior has been tested.
 
 The inspected 0.164.0 schemas include `initialize`/`initialized`, `thread/start`, `thread/resume`, `turn/start` with `threadId`, `input`, `model`, and `effort`, and `turn/interrupt`. `model/list` is paginated and exposes supported reasoning efforts. Generate types from the version selected for implementation and use its exact enums and event shapes; do not copy incompatible current website examples blindly.
 
@@ -45,18 +47,20 @@ Live proof is still required: two user turns and resumption must preserve sessio
 
 ## Classifier and policy contract
 
-The proposed first contract is a typed choice of one eligible configuration ID, not free-form model names or an explanatory chain of thought. Hosted Jev and OpenJev adapters may serialize differently, but receive the same allowed state and candidate information. Direct choice versus feature classification is a later optional experiment; keep the adapter/policy boundary separate without implementing both now.
+The owner clarified the initial contract: Jev/OpenJev returns a task type plus a few categorical signals, and a separate routing policy chooses the configuration. This supersedes the earlier proposal to request a configuration ID directly from the classifier. Hosted Jev and OpenJev adapters share the same permitted task information and category definitions despite serialization differences. The [Phase 1 specification](phase-1-specification.md) records confirmed structure and provisional labels. A direct-selection ablation is optional later work.
+
+Keep category questions independent of model IDs and prices; the policy receives registry/performance/budget data. Use a versioned category-to-configuration mapping, with its entries informed by measured development outcomes. Hold that mapping fixed in the primary untuned/tuned classifier comparison. Category supervision and configuration-outcome evidence have distinct provenance and purposes.
 
 | Proposed record | Required meaning |
 | --- | --- |
-| Routing state | Schema version, task/session/turn IDs, current prompt, bounded visible context/progress, context-selection version/hash, eligible configurations, remaining limits. |
-| Classifier result | Requested/observed classifier version, chosen configuration ID or invalid result, optional option scores, latency, usage and cost provenance. |
-| Policy decision | Requested choice, final eligible configuration, policy version, fallback/rejection reason, budget reservation, links to state and classifier result. |
+| Routing state | Schema version, task/session/turn IDs for tracking, current prompt and classifier-input hash/version; policy-only eligible configurations and remaining limits. IDs/history/repository state are not classifier features. |
+| Classifier result | Requested/observed classifier version, taxonomy/question versions, task-type/signal labels or invalid result, optional per-question scores, latency, usage and cost provenance. |
+| Policy decision | Consumed classification, mapping version, eligible configurations, selected configuration, fallback/rejection reason, budget reservation, links to state and classifier result. |
 | Execution record | Codex thread/turn IDs, requested/accepted/observed settings, timestamps, completion/cancel/error reason, usage availability and artifact links. |
 
-Define one versioned JSON Schema contract shared with the Python runner. Exact field names, truncation limits, deadlines, and fallback values remain Phase 1 decisions. JSONL event logs and hashed manifests provide the initial storage boundary; add Parquet only if analysis benefits.
+Define one versioned JSON Schema contract for the router, runner, and stored artifacts even when they share a language. [First-build defaults](first-build-defaults.md) now selects the offline record fields, input-size behavior, deadlines, and fixture fallback; real-provider mapping/settings remain separately gated. JSONL event logs and hashed manifests provide the initial storage boundary; add Parquet only if analysis benefits.
 
-Option probability measures the classifier's preference among choices. It is not automatically the probability that the coding task will pass. Do not route based on a claimed success confidence without development calibration and validation. Invalid output, timeout, or unsupported configuration follows a predeclared deterministic fallback.
+Option probability measures preference among category labels, not coding-task success. Do not use it as a claimed success probability. Keep a valid unknown/insufficient-evidence category distinct from malformed output, timeout, and unsupported policy routes. Define the handling of each before implementation and include every classifier question in cost and latency accounting.
 
 ## Configuration registry and execution limits
 
@@ -64,11 +68,11 @@ Record exact provider/model ID and immutable version when available, supported r
 
 The proposed pilot pool is `gpt-6-luna` and `gpt-6.1-sol`, each at `low` and `high`, pending account and Codex compatibility checks. The source-backed rationale is in [Research review](research-review.md#proposed-gpt-configurations); development results must choose a strong fixed baseline and fallback. No model is established as the best route for a task category.
 
-Select eligible configurations before classification. All strategies share the allowed pool, context information, per-task limits, and fallback policy. Report strategy-specific overhead against the common total resource ceiling; do not give the classifier free extra attempts.
+Select eligible configurations before classification. All matched classifier/rule strategies share the prompt-only input boundary, allowed pool, per-task limits, and fallback policy; their coding agents share normal Codex context construction. Report strategy-specific overhead against the common total resource ceiling; do not give the classifier free extra attempts.
 
 ## Failure and budget behavior
 
-Before implementation, choose a valid fallback for classifier failure, maximum retries, deadlines, and policy for unavailable configurations. Prefer the development-selected reliable fallback when it fits remaining limits. If no valid choice fits, stop with a budget/availability outcome. Do not launch an unbounded escalation chain.
+The owner selected automatic reliable fallback for insufficiently informative prompts, without a router-only clarification question. Choose its exact configuration from development evidence and use it only when valid within remaining limits. Before implementation, also define failure/timeout rules, retries, deadlines, sparse categories, and unavailable configurations. If no valid choice fits, stop with a budget/availability outcome. Do not launch an unbounded escalation chain or enrich the classifier input to resolve an unknown. Normal Codex task questions and tool approvals remain part of the workflow.
 
 Reserve for in-flight work and stop scheduling new calls at the configured limit. Provider billing can arrive late, and aggregate Codex usage may omit internal call details; describe caps as admission controls with documented accounting limits rather than guaranteeing an exact bill. Use exposed output/context limits to constrain exposure and reconcile provider records afterward.
 
@@ -78,10 +82,10 @@ Never record missing usage as zero. Distinguish measured tokens, actual billed a
 
 Run benchmark repository commands and the coding agent's tools in the isolated environment selected for that benchmark. Hidden tests, reference patches, and unreleased later prompts remain in evaluator/controller storage outside the agent and router's accessible workspace. Regrade patches in clean environments using the pinned evaluator.
 
-The Python controller prepares a task and starts the same TypeScript/Codex path inside the permitted execution environment. It collects patches and records, then requests external evaluation. Each strategy/run has an independent repository and session; live adaptive outcomes cannot be manufactured from unrelated cached steps.
+The Python controller prepares a task and starts the same Codex client path used by the terminal inside the permitted execution environment. It collects patches and records, then requests external evaluation. Each strategy/run has an independent repository and session; live adaptive outcomes cannot be manufactured from unrelated cached steps.
 
 The detailed protocol is in [Evaluation](evaluation.md). Precise container images, credential delivery, evaluator revisions, and access boundaries must be specified before benchmark implementation; no benchmark code has been run on the developer's host.
 
 ## Design gate
 
-Before coding, resolve the terminal state transitions, exact shared records, context cap, configuration/fallback behavior, timeout/retry/budget limits, and benchmark isolation plan. Record choices in the master [Development plan](development-plan.md). Live validation follows as a small purposeful experiment after the design is clear; the architecture itself is not evidence of implementation.
+The owner selected [conservative defaults](first-build-defaults.md) for the first offline slice: records, input limits, fixture policy/fallback, session state, retries/timeouts, and accounting. That slice starts in the next resumed development session. Resolve compatible real-client pins, actual configuration access, reviewed live caps, and benchmark isolation before dependent work. Live validation follows a clear design; the architecture is not evidence of implementation.
