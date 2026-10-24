@@ -2,6 +2,8 @@
 
 The owner supplied this background proposal from another project conversation on October 19, 2026. It motivates the joint-selection research question and preserves useful experiments beyond the initial Milestone 1 scope. It does not establish working APIs, measured gains, or novelty.
 
+The October 24 [Research review](research-review.md) now checks primary sources and narrows the proposed contribution. [Development plan](development-plan.md) is authoritative for active work; this background does not revive the inactive course schedule or expand the implementation scope.
+
 ## Research question and contribution
 
 Can a lightweight decision model allocate models and reasoning effort throughout a coding task to reduce total cost while maintaining task success?
@@ -28,7 +30,7 @@ Inputs can include the current request, relevant repository context, investigati
 
 Direct selection gives Jev descriptions of the eligible configurations and their measured development capabilities, then asks for a configuration choice. Classification followed by a policy asks for task/progress signals and uses rules or a small trained predictor to map them to a route. Both need the same information, valid configuration pool, and execution limits to make the comparison meaningful.
 
-The initial implementation can choose one contract and keep the adapter/policy boundary flexible. Comparing both approaches is an additional experiment. Classifier confidence is not automatically the probability that a chosen configuration will solve the task; validate any confidence-based policy against observed routing outcomes.
+The recommended initial contract is a typed configuration choice followed by deterministic eligibility, budget, and fallback checks. Keep the adapter/policy boundary flexible; comparing direct choice with feature classification is an additional experiment. Classifier confidence is not automatically the probability that a chosen configuration will solve the task; validate any confidence-based policy against observed routing outcomes.
 
 ## Additional comparison arms
 
@@ -41,7 +43,7 @@ The initial implementation can choose one contract and keep the adapter/policy b
 | User-prompt routing versus internal checkpoints | Does reacting during execution justify its added complexity and cost? |
 | Direct selection versus classification plus policy | Is it better to ask the classifier for a route or for signals used by a policy? |
 
-The strong fixed configuration and simple-rule baseline remain important controls. These optional arms complement the core hosted Jev/untuned OpenJev/fine-tuned OpenJev comparison; they do not replace it or mandate every cross-product of settings. Select affordable experiments after the pilot.
+The strong fixed configuration and simple-rule baseline remain important controls, with a cheap learned control added for the paper study. These arms complement the hosted Jev/untuned OpenJev/fine-tuned OpenJev comparison and do not require every cross-product. Initial-only versus per-user-turn selection is required if we claim an adaptation benefit; model-only and effort-only controls are required if we claim joint selection beats either alone. Other extensions remain optional. Select affordable experiments after the pilot and narrow claims when an ablation is unaffordable.
 
 For any future checkpoint extension, define routing opportunities in advance, such as after investigation or failed visible tests. Keep the handoff representation constant initially and run each adaptive policy live. Do not estimate performance by combining favorable pieces of unrelated trajectories.
 
@@ -62,6 +64,6 @@ The original build order emphasizes a benchmark runner, a small fixed-configurat
 
 The supplied proposal names OpenRouter's Decisions and System One APIs as possible Jev access paths and mentions reasoning controls that differ by model. Verify current documentation, availability, and billing before choosing an integration. Access to GPT models through another provider does not demonstrate that the owner's direct API credits will pay for those calls.
 
-The proposal also identifies OpenRouter automatic routing, a published Jev routing experiment, and HRBench work on thinking-mode selection as related-work leads. Exact publications, versions, and overlap have not been established in this repository. Locate and read their primary sources before claiming novelty or choosing literature baselines. Frame the contribution around the measured coding workflow and controlled comparisons rather than claiming to invent model routing.
+The proposal also identifies automatic routing, a Jev routing experiment, and HRBench. The [Research review](research-review.md#related-work-and-the-claim-it-permits) now records specific versions of RouteLLM, Ares, SWE-Router, CodeRescue, Control the Harness, Scrouting, and HRBench. Their overlap makes a broad novelty claim inappropriate. Complete a closer method comparison before choosing final claims; frame the contribution around live executable evidence, controlled classifier adaptation, and total economics.
 
 The stakeholder can help choose realistic debugging tasks, define an acceptable reliability trade-off before final evaluation, and assess whether results would change his workflow. Those conversations and trials are future work, not completed feedback.

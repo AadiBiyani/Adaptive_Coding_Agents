@@ -14,9 +14,17 @@ The owner requested context from [another project conversation](https://chatgpt.
 
 The pasted material is the original broader research proposal, also discussed before the later Milestone 1 decisions. It proposes task-progress signals, joint model/effort selection, direct versus policy-based routing, internal checkpoints, additional comparison arms, and related-work leads. The development documents retain those ideas while preserving the later agreed initial scope. Statements in the pasted text about current vendor APIs or prior research are leads to verify, not newly checked technical facts.
 
-## Technical references to verify during implementation
+## October 24 corrections and research review
 
-These are reference pointers from planning, not a statement that current APIs, prices, supported models, or hardware requirements have been revalidated during repository setup.
+The owner reaffirmed TypeScript plus Python, corrected the reported OpenAI API-credit amount to $3,333, emphasized minimal consumption, and stated an intention to develop an ML paper. The owner then requested deletion of the premature prototype, set the Milestone 2 schedule aside, and required a coherent design before more coding. Those instructions take precedence over the historical schedule and earlier estimates.
+
+The prototype archive, generated schemas, and empty implementation directories were deleted. Documentation was revised; no paid experiment, trained model, or benchmark result was produced by this review. Local schemas had been inspected before deletion. A prior live account/model inspection failed on a restricted Codex database write, and the escalation was declined; access was not verified and the denial must not be bypassed.
+
+[Technical discovery](technical-discovery.md) records local observations and unverified live behavior. [Research review](research-review.md) records current primary-source findings and recommendations, including model candidates and related-work overlap. [Training plan](training-plan.md) distinguishes the readable OpenJev release/configuration/serving material from the helper inspection and backward-pass proof still needed. These reviews are not an exhaustive literature survey or a guarantee that a proposed recipe fits a GPU.
+
+## Technical references to recheck before use
+
+These pointers supplement the dated findings above. Interfaces, account access, prices, and requirements can change; a documentation check is not a successful integration or experiment.
 
 - [Codex app-server documentation referenced during planning](https://learn.chatgpt.com/docs/app-server)
 - [Codex hooks documentation referenced during planning](https://learn.chatgpt.com/docs/hooks)

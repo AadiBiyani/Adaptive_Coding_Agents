@@ -1,58 +1,64 @@
 # Development handoff
 
-Prepared October 19, 2026 for a new agent working from a fresh clone.
+Updated October 24, 2026 after the owner requested a return to requirements and research planning. Read this file, then the project brief, architecture, evaluation, and development plan before continuing.
 
-## Goal
+## Current instruction and state
 
-Build a terminal routing component that preserves a Codex coding workflow, classifies each newly submitted prompt with Jev or OpenJev, and selects a supported GPT model and reasoning effort before execution. Deliver a fine-tuned OpenJev classifier and controlled SWE-bench and multi-turn evaluation results showing correctness, cost, time, and corrective follow-ups across routing strategies.
+The owner explicitly asked to delete the code written prematurely, set Milestone 2 aside, and review the full product/research plan before writing more code. **Continue planning; do not start another prototype while the current design choices remain unresolved.** `docs/development-plan.md` is the primary roadmap. `docs/milestone-2-plan.md` is an inactive course reference, not the development schedule.
 
-## Current state
+The premature JavaScript prototype had already been moved into `build/deferred-javascript-20261024/`. That archive and its integrity manifest, generated files in `build/codex-schema/`, and the empty source/test/config/build directories were deleted at the owner's request. No application source, package manifest, tests, dependency installation, or generated protocol files remain. Do not restore the archive or treat it as accepted implementation.
 
-The project definition and Milestone 1 proposal are complete. The private submission package was finalized and its exact ZIP passed the course's structural checker on September 28, 2026. The owner explicitly confirmed the four student attestations and the stakeholder's authorization of the corrected agreement. Actual upload or grading has not been confirmed.
+The earlier prototype's offline checks and simulated demo were not live product or research results. No actual coding-model inference, benchmark run, training job, tuned checkpoint, or measured routing gain has been established. This review changed planning documents only and launched no paid experiments.
 
-This development repository was empty when inspected on October 19. The initial work consists of documentation and repository hygiene only. No integration, dataset, run, training job, or measured performance result exists here. There is no build or application test command yet.
+## Goal and confirmed scope
 
-The owner supplied the original research proposal from the separate ChatGPT conversation on October 19. Its routing hypotheses, broader comparisons, and related-work leads are incorporated in `docs/research-notes.md`. Later Milestone 1 decisions narrow the initial implementation to per-user-prompt routing, GPT coding models, and the hosted/untuned/fine-tuned classifier comparisons. The pasted proposal provides background rather than a request to undo that scope.
+Build a dedicated terminal command that preserves the Codex coding workflow and session context. Before each newly submitted user prompt, choose both a supported GPT model and reasoning effort from a registry. Route at user-message boundaries, not at internal tool/model steps. Start with bug fixing/debugging.
+
+Deliver hosted TypeSafe Jev, untuned independent OpenJev, and fine-tuned OpenJev comparisons alongside strong fixed and simple-rule controls. Add a cheap learned baseline for the paper study. Keep SWE-bench, a controlled multi-turn evaluation, and qualitative stakeholder feedback. Correctness comes first; savings and productivity gains remain hypotheses.
+
+The owner reaffirmed TypeScript for the terminal/router/Codex client and Python for training, benchmark orchestration, and analysis. Fine-tuning remains required; do not silently replace it with a rules-only product or a different similarly named model. “Like OpenRouter” means a routing entry point and interchangeable configurations, not an entire public gateway business.
+
+The owner reports **$3,333 in OpenAI API credits**, superseding the earlier $3,000 estimate, and wants minimal consumption for necessary validation, submissions, or ML-paper experiments. Balance, expiry, eligible models, and billing access remain unverified. The credits are not a spending target or authorization. API stage limits and separate classifier/cloud/benchmark cash caps are undecided. No paid experiment or GPU provision is authorized.
+
+## Findings and recommended design
+
+- Use one version-pinned Codex app-server stdio client in TypeScript for interactive and benchmark execution. Node.js 24 LTS/npm and Python 3.12/uv are recommended runtime choices; exact compatible pins remain to be selected.
+- Local CLI inspection reported `codex-cli 0.164.0`. Generated schemas were inspected before deletion and included per-turn `model`/`effort`, thread start/resume, paginated model discovery, approvals, interruption, and usage. Live continuity/configuration execution and full billing observability remain unproved.
+- The previous account/model inspection attempt could not initialize Codex's local SQLite state because of filesystem restrictions. The owner declined the escalation. Do not retry it or work around the denial without renewed authorization.
+- A proposed pilot grid is `gpt-6-luna` and `gpt-6.1-sol` at low/high effort, subject to actual access and Codex compatibility. Official catalog support is not account access or a measured best model.
+- The reviewed `openjev/openjev` is an independent 27B checkpoint. The serving recipe does not prove a fine-tuning recipe or training fit. Exact pinned helper inspection, adapter/readout compatibility, and a capped memory/backward-pass check remain necessary. Supervised option-token LoRA is proposed; QLoRA is conditional.
+- Prior work already covers coding routing, effort routing, and Jev-based decisions. A narrower executable empirical study is more defensible than claiming these ideas are new. Fine-tuning economics and simple learned controls matter.
+- Ordinary SWE-bench issue-to-patch evaluation tests initial routing. Claims about adaptation across user prompts require the separate multi-turn protocol. Final cohort/version, numeric reliability margin, sample size, and compute remain open.
+
+These are planning findings and recommendations, not completed phases. Details and primary sources are in the files below.
 
 ## Files in play
 
 | File | Role |
 | --- | --- |
-| `README.md` | Project orientation and clone/start instructions |
-| `AGENTS.md` | Development guidance for future agents |
-| `docs/project-brief.md` | Agreed problem, product scope, stakeholder need, and constraints |
-| `docs/architecture.md` | Proposed integration and boundaries; not implemented |
-| `docs/evaluation.md` | Comparison design and minimum experiment records |
-| `docs/research-notes.md` | Original hypotheses, optional experiments, and scope evolution |
-| `docs/development-plan.md` | Ordered implementation work and open decisions |
-| `docs/context-sources.md` | Sources and limitations of the carried-forward context |
-| `.gitignore` | Keeps evidence, secrets, generated artifacts, and raw run data out of Git |
+| `README.md` | Project orientation and current status. |
+| `AGENTS.md` | Persistent scope, work, cost, and repository rules. |
+| `docs/development-plan.md` | Primary phased roadmap, design gates, and decision ledger. |
+| `docs/project-brief.md` | Development summary of the agreed need and current resources. |
+| `docs/architecture.md` | Proposed TypeScript/Python boundary, Codex integration, contracts, and limits. |
+| `docs/evaluation.md` | Controls, SWE-bench/multi-turn design, splits, statistics, costs, and records. |
+| `docs/training-plan.md` | OpenJev identity, proposed labels/adapter loop, compatibility gate, and provenance. |
+| `docs/research-review.md` | Dated primary-source review, technology/model candidates, and related-work overlap. |
+| `docs/technical-discovery.md` | Local/protocol evidence, attempted inspection, and remaining live checks. |
+| `docs/research-notes.md` | Original hypotheses and optional extensions; does not override current scope. |
+| `docs/milestone-2-plan.md` | Inactive course requirements and historical ten-day proposal. |
+| `docs/context-sources.md` | Context provenance and privacy boundaries. |
 
-The original course `brief.md`, `submission.yaml`, and stakeholder evidence are in the separate private Milestone 1 workspace. Do not copy the full course package into this public repository.
+## Next unfinished work
 
-## What has been tried
+Finish Phase 0's design review and Phase 1's concrete specifications. Review the app-server state/approval/usage contract; inspect the pinned OpenJev helper/readout; choose the initial benchmark/environment and split strategy; and settle context limits, fallback, timeouts, retry behavior, and resource accounting. Numerical reliability criteria and final-study precision must be fixed before held-out evaluation, using stakeholder needs and development evidence.
 
-Milestone 1 planning selected a dedicated terminal command instead of requiring an invisible modification to the stock Codex terminal UI. Earlier feasibility notes identified Codex app-server as a candidate for per-turn model/effort selection with session continuity. No integration spike was run, so current support must be verified before implementation.
+Keep design choices separate from empirical checks. Once the relevant design is clear and implementation is requested, the first coding slice is a fixed/stub session client with offline verification, followed by a separately capped live proof. Then build the evaluator and fixed pilot, add classifier controls, collect outcome labels, fine-tune, freeze, and evaluate. Do not begin with GPU rental or a large benchmark sweep.
 
-A public web read of the owner's separate ChatGPT conversation failed with a cache miss. Browser discovery returned no available browser. The owner then pasted the relevant proposal, which has been incorporated. The private URL itself was not read; a fresh agent can continue from these documents without reopening it.
+## Historical context and private material
 
-No model-training or benchmark approaches have failed experimentally: none have been attempted. Cloud fine-tuning was selected after the owner rejected dropping fine-tuning or limiting the project to local hardware.
+The Milestone 1 proposal and private submission ZIP were finalized in September; the owner confirmed the attestations and corrected agreement authorization. Upload/grading was not established by that structural check. The exact approved brief and stakeholder evidence stay in the private course workspace. No new stakeholder review or feedback has been conducted by the agent.
 
-## Current best approach
+The owner pasted the original broader proposal on October 19 after the linked private chat could not be read. Its optional internal-checkpoint experiments do not replace the later user-prompt scope. On October 24 the course Milestone 2 package was inspected, but its schedule has now been explicitly set aside. Its packaging rules do not govern product development.
 
-First prove that a small terminal client can preserve one coding session and apply a chosen model/effort configuration at each new user turn. Keep classifier adapters separate from the routing policy and coding harness. Establish measured fixed baselines and a bounded development dataset before fine-tuning. This isolates integration problems, makes comparisons fairer, and limits wasted credits.
-
-## Next steps
-
-1. Follow step 1 of `docs/development-plan.md`: inspect the installed Codex version and current official integration documentation, choose a minimal language/runtime, and record the supported session/configuration interface.
-2. Build the smallest offline-verifiable terminal/session adapter using a stub decision source. Do not start with the training pipeline.
-3. Define the candidate GPT configurations, task splits, logs, and pilot caps. Exact model IDs and spending limits are not yet agreed.
-4. Run authorized fixed-baseline pilots, add classifier adapters, collect development outcomes, fine-tune OpenJev, and then run the frozen held-out comparison in that order.
-
-## Key constraints
-
-The initial evaluation is bug fixing/debugging. A new user prompt triggers routing; internal tool results do not independently trigger an automatic model switch. Correct task completion takes priority over cost/time. Fewer prompts means fewer corrective user follow-ups to finish a task, not fewer model or tool calls by definition.
-
-The owner reported $3,000 in GPT API credits during planning and wants to use as little as possible. The current balance, expiry, API access, and separate cash compute budget have not been verified. No particular cloud provider, GPU, exact task count, model ID, numerical reliability tolerance, language, or training recipe is locked in.
-
-Hosted TypeSafe Jev and independent OpenJev are distinct. Fine-tuning OpenJev remains a desired deliverable. SWE-bench results remain a central output. Published leaderboard numbers are context rather than a controlled baseline. Keep the handoff committed because the owner explicitly requested context that survives cloning; no local memory service should be required to understand the repository.
+Keep personal contact details, student identifiers, private conversations/evidence, secrets, and employer material out of Git. No access to a stakeholder's former employer's repositories or benchmark is assumed. Keep this handoff sufficient for a fresh clone; a local memory service is not required.
