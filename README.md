@@ -1,72 +1,118 @@
 # Adaptive Coding Agents
 
-Adaptive Model and Reasoning Selection for AI Coding Agents is a research project to choose a GPT coding model and reasoning effort for each user prompt in a Codex-based terminal workflow. Jev or OpenJev receives only the current prompt as task content and classifies a task type plus a few signals; a separate routing policy maps those categories to a supported model/effort configuration. Codex retains its coding-session context. Executable coding benchmarks measure whether the complete system improves the trade-off between correctness, cost, and completion time.
+**Adaptive Model and Reasoning Selection for AI Coding Agents** is a research project starting with Python debugging and bug fixing. The intended product classifies each new user prompt with Jev/OpenJev, then uses a separate policy to select a GPT model and reasoning effort. Codex keeps its existing conversation, repository access, tools, and approvals.
 
-The first study asks: **Does fine-tuning OpenJev improve routing over untuned OpenJev, producing better task performance or lower cost/token usage?** Correctness comes first. Among similarly reliable configurations, the project prefers lower cost and time. Report dollars and tokens separately; classifier overhead and training costs are part of the evaluation.
+The primary research question is whether fine-tuning OpenJev improves routing compared with untuned OpenJev, leading to better task performance or lower cost/token usage. Correctness comes first; savings remain hypotheses until measured.
 
-## Status
+## Current checkpoint: Jev client
 
-As of October 24, 2026, this repository contains planning documents only. The premature prototype, its archived copy, and generated protocol files were deleted at the owner's request. Phase 0 is complete. The owner selected conservative defaults for the first offline build and plans to start development tomorrow; that contract is ready, while broader Phase 1 research/live-integration gates remain open. No live coding-model, benchmark, or training result has been established.
+The active implementation is a direct **hosted TypeSafe Jev client** and a standalone request-review script. It builds three category questions, validates responses, and exposes provider token usage when available. Preview is the default and performs no network request. Explicit `--live` mode can send one request after account setup and spending approval.
 
-[Development plan](docs/development-plan.md) is the primary roadmap. The Milestone 2 schedule is inactive; development now follows design and evidence gates rather than that deadline. Python is the selected design direction for the initial terminal/router, training, benchmarking, and analysis, with one Codex execution path. The owner has no language requirement; the earlier TypeScript/Python split was an agent recommendation. The owner reports $3,333 in API credits and will choose a cap after reviewing a run-by-run estimate. Cloud spending must remain strictly under $50 cumulatively. No paid experiment was started by this planning work.
+**Live Jev inference has not been verified. There are no classifier accuracy, routing, or benchmark results yet.** The earlier simulated CLI/routing/Codex implementation is preserved in an ignored local archive and removed from the active package. No product terminal command or coding execution is active.
 
-The context includes the original research proposal supplied by the owner and the later Milestone 1 scope decisions. Broader research hypotheses and optional experiments are preserved in [Research hypotheses and extensions](docs/research-notes.md).
+Development stops after every phase for owner testing and code review. The [development plan](docs/development-plan.md) defines the checkpoints.
 
-## Start here
+## Overall architecture
 
-Read [AGENTS.md](AGENTS.md) and [HANDOFF.md](HANDOFF.md) when starting a new agent session. The remaining documents cover the decisions that should survive across sessions:
-
-| Document | Purpose |
-| --- | --- |
-| [Project brief](docs/project-brief.md) | Problem, intended value, agreed scope, resources, and risks |
-| [Architecture](docs/architecture.md) | Per-prompt routing, Codex integration, and component boundaries |
-| [Evaluation](docs/evaluation.md) | SWE-bench output, comparison strategies, training data, and run records |
-| [Training plan](docs/training-plan.md) | OpenJev identity, supervised adapter proposal, compatibility checks, and training economics |
-| [Research review](docs/research-review.md) | Primary-source findings, stack/model recommendations, and related-work overlap |
-| [Technical discovery](docs/technical-discovery.md) | Inspected local interfaces, attempted checks, and unproved live behavior |
-| [Research notes](docs/research-notes.md) | Original routing hypotheses, optional comparisons, and related-work leads |
-| [Development plan](docs/development-plan.md) | Ordered work, completion criteria, and unresolved decisions |
-| [Phase 0 decisions](docs/phase-0-decisions.md) | Completed scope decisions, selected design, and later validation gates |
-| [Phase 1 specification](docs/phase-1-specification.md) | Confirmed classification/policy flow, provisional categories, and remaining contracts |
-| [First-build defaults](docs/first-build-defaults.md) | Selected offline records, limits, fallback, runtime setup, session behavior, and accounting |
-| [Context sources](docs/context-sources.md) | Provenance, source limitations, and excluded private material |
-
-To continue after cloning:
-
-```sh
-git clone https://github.com/AadiBiyani/Adaptive_Coding_Agents.git
-cd Adaptive_Coding_Agents
-```
-
-When resuming development, ask the agent: **Read AGENTS.md and HANDOFF.md, then implement the first offline slice in docs/first-build-defaults.md. Keep real model calls, benchmark execution, and cloud training behind their remaining gates.**
-
-There is no application installation or execution command yet. The next development session starts with an isolated Python 3.12 environment and the specified offline core, using simulated adapters and no model spending. Exact compatible SDK/runtime pins must be verified before adding the real adapter; later live checks require a reviewed estimate and cap.
-
-## Intended workflow
+GitHub renders this Mermaid diagram directly. The Phase 1 client exists; its live endpoint connection still awaits validation. Phases 2 and 3 are planned.
 
 ```mermaid
-flowchart LR
-    A[New user prompt] --> B[Current prompt only plus fixed category instructions]
-    B --> C[Jev or OpenJev classifier]
-    C --> I[Task type and categorical signals]
-    I --> D[Separate routing policy and valid configuration list]
-    D --> E[GPT model and reasoning effort]
-    E --> F[Codex turn in the existing task session]
-    F --> G[Tools, edits, tests, and response]
-    G --> H[Next user prompt]
-    H --> B
+flowchart TD
+    P["Current user prompt"] --> B["Prompt-only request builder"]
+    Q["Fixed, versioned category questions"] --> B
+
+    subgraph P1["Phase 1 - implemented client; live validation pending"]
+        B --> V["Default: preview exact request locally"]
+        B --> G["Explicit live request after account and spending approval"]
+        G --> J["Hosted TypeSafe Jev"]
+        J --> C["Validate categories, probabilities, confidence, and usage"]
+        J --> E["API or response error: report failure; no automatic retry"]
+    end
+
+    subgraph P2["Phase 2 - planned classification evaluation"]
+        P --> H["Independent human category annotations"]
+        C --> A["Compare predictions with reviewed labels"]
+        H --> A
+        A --> M["Accuracy, macro-F1, exact match, errors, latency, and usage"]
+    end
+
+    subgraph P3["Phase 3 - planned routing and terminal product"]
+        ALT["Untuned OpenJev, fine-tuned OpenJev, and classifier controls"] -.-> C
+        C -.-> R["Separate routing policy"]
+        O["Measured development outcomes, supported configurations, and limits"] --> R
+        R --> S["GPT model and reasoning effort; eligible fallback for unknowns"]
+        S --> X["Codex turn in the existing session"]
+        P --> X
+        K["Conversation history, repository, tools, and approvals"] --> X
+        X --> T["Edits, tests, and response"]
+        T --> EV["Executable patch evaluation: SWE-bench and controlled multi-turn tasks"]
+        T --> N["Next user prompt"]
+        N --> P
+    end
 ```
 
-Classification happens before each new user turn using only that prompt. Automatic reliable fallback handles insufficient information within remaining limits; its configuration will be selected from development evidence. Conversation history, repository context, and tool results remain with Codex. Additional classifier context and internal-step routing are possible later experiments. The initial task scope is repository bug fixing and debugging.
+Only the current prompt and fixed category definitions enter Jev. Code and tracebacks pasted into that prompt are allowed; the client does not fetch files or add history. Category annotations evaluate the classifier. Executable coding outcomes separately establish and evaluate the routing policy. Confidence is not the probability that a coding task will succeed.
 
-## Intended deliverables
+## Test this checkpoint yourself
 
-The project will produce a usable terminal router, a cloud-fine-tuned OpenJev classifier, and a comparison report with SWE-bench patch-evaluation results. A smaller reproducible multi-turn evaluation will measure corrective follow-ups, and a stakeholder trial will provide qualitative workflow feedback.
+From the repository directory, using the existing Python 3.12.15 and uv 0.11.16 installation:
 
-The comparison includes a strong fixed GPT configuration, simple routing rules, a cheap learned classifier, hosted TypeSafe Jev, untuned OpenJev, and fine-tuned OpenJev under shared agent and evaluation conditions. Classifier variants supply categories to the same routing policy; the coding agent produces patches. Hold that policy fixed for the primary tuned/untuned comparison. Hosted Jev and independent OpenJev are separate models. Standard SWE-bench tests initial selection; a separate multi-turn protocol tests adaptation across user prompts. Our run records measure cost and tokens alongside executable patch results.
+```sh
+uv sync --offline --no-python-downloads --cache-dir .cache/uv
+.venv/bin/python scripts/classify_prompt.py --prompt-file examples/python_bug_prompt.txt
+```
 
-An ML paper is an intended output. Related work already covers several forms of model and effort routing, so novelty and performance gains must be established rather than assumed. Negative or inconclusive results should be reported honestly.
+The setup command uses locally installed/cached tools; a fresh machine needs Python and uv first. Runtime dependencies are empty. Sync also removes the old `adaptive-code` entrypoint from this environment.
 
-## Repository boundaries
+Expected: JSON with `status: "preview"`, `request_attempted: false`, model `jev-1.14.0`, your complete prompt in `request.state`, and three Choice questions with `criteria` definitions. **Preview does not produce predicted categories or token usage.** It intentionally prints the request text for local review and saves no files.
 
-Private stakeholder recordings, agreements, email screenshots, contact details, student identifiers, and the course submission archive stay outside this public repository. The project brief here is a development summary, not the exact stakeholder-approved evidence document. Runtime credentials, model weights, datasets, and raw agent traces are also excluded by default. Small reviewed aggregate results can be committed later with their reproduction instructions.
+[The example prompt](examples/python_bug_prompt.txt) includes Python code, reproduction, a traceback, and expected behavior. It is an illustrative input, not a benchmark result or a labeled accuracy dataset. You can use your own UTF-8 prompt file or pipe text in:
+
+```sh
+printf '%s\n' 'try again' | .venv/bin/python scripts/classify_prompt.py
+.venv/bin/python scripts/classify_prompt.py --help
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+Local unit tests intercept HTTP responses and prevent network connections. They check unchanged multiline/Unicode prompts, byte limits, request format, malformed responses, missing usage, authentication errors, rate limits, timeouts, and no automatic retries. Passing these checks says nothing about Jev's classification accuracy. `/tests/` is intentionally ignored at the owner's request; the tests remain in this workspace and are not included in a fresh Git clone. The preview commands work with the public source and example alone.
+
+## Files to review
+
+| File | What it does |
+| --- | --- |
+| [taxonomy.py](src/adaptive_coding_agents/taxonomy.py) | Defines the three fixed questions and every category description; provisional taxonomy `draft-1`. |
+| [records.py](src/adaptive_coding_agents/records.py) | Validates prompts/categories, hashes exact prompt bytes, and defines classification/usage records. |
+| [jev.py](src/adaptive_coding_agents/jev.py) | Builds the direct TypeSafe request, sends one HTTP call, validates the response, and reports sanitized failures. |
+| [classify_prompt.py](scripts/classify_prompt.py) | Reads a file or stdin; previews by default and requires `--live` to contact TypeSafe. |
+
+The taxonomy retains the earlier category names and adds explicit definitions:
+
+| Field | Options |
+| --- | --- |
+| `task_type` | `diagnose`, `fix`, `validate`, `mixed_or_unclear` |
+| `cause_evidence` | `supporting_details`, `hypothesis_only`, `unknown` |
+| `change_scope` | `localized`, `cross_component`, `unknown` |
+
+`draft-1` is provisional and needs review on development examples before accuracy evaluation. A request to repair a bug remains `fix` when explanation and tests support that repair. A traceback alone does not establish a localized change scope. Unknown categories remain valid answers; this checkpoint does not map them to a coding configuration.
+
+## Direct TypeSafe integration
+
+The client targets `https://api.typesafe.ai/v1/systemone` with the explicit model `jev-1.14.0`, using `TYPESAFE_API_KEY` from the environment. The HTTP format and model were checked against the [TypeSafe API](https://docs.typesafe.ai/api/system-one), [Choice reference](https://docs.typesafe.ai/primitives/choice), and [model list](https://docs.typesafe.ai/models) on October 25, 2026. It uses standard-library HTTP with a 30-second socket timeout, no automatic retries, and no redirects. A timeout may occur after the provider processed a request; missing usage stays unavailable.
+
+Inputs over 16,384 UTF-8 bytes are rejected before transmission, without truncation. This is our initial application limit, not TypeSafe's maximum context size. Live results include requested and returned model IDs, category probabilities and confidence, prompt/request hashes, elapsed time, and available token counts. Actual billed cost remains null because this response does not establish the bill. Live output omits raw prompts and API keys; provider error bodies are not echoed.
+
+**Phase 2 only:** after account setup, a reviewed estimate, and an approved cap, set `TYPESAFE_API_KEY` privately and explicitly add `--live`:
+
+```sh
+.venv/bin/python scripts/classify_prompt.py --prompt-file examples/python_bug_prompt.txt --live
+```
+
+That flag can incur charges; it is not a budget enforcement system or permission for automated batches. No account or credits are needed for Phase 1 previews/tests. OpenAI API credits do not fund TypeSafe Jev. [OpenAI credit terms](https://openai.com/policies/service-credit-terms/)
+
+## Research and repository boundaries
+
+The eventual comparison includes hosted TypeSafe Jev, untuned OpenJev, fine-tuned OpenJev, strong fixed configurations, simple rules, and a cheap learned classifier. Hosted Jev and OpenJev are separate models. Hold the taxonomy and downstream policy fixed in the primary tuned/untuned comparison. SWE-bench executable evaluation, a controlled multi-turn study, and stakeholder feedback remain deliverables.
+
+Read the [project brief](docs/project-brief.md), [architecture](docs/architecture.md), [evaluation design](docs/evaluation.md), and [training plan](docs/training-plan.md) for those future stages. [HANDOFF.md](HANDOFF.md) records the current implementation and pause point.
+
+Tests, the deferred local archive, generated runs, raw datasets, secrets, private conversations, stakeholder evidence, and course submissions stay out of Git. Small reviewed research reports and manifests may be committed later with real evidence. Nothing in this checkpoint is a measured model-performance result.
