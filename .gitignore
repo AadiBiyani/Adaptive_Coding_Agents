@@ -11,6 +11,13 @@ credentials/
 *.pem
 *.key
 
+# Local editor settings and temporary buffers
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*~
+
 # Private course and stakeholder records
 /inbox/
 /evidence/
@@ -33,6 +40,19 @@ node_modules/
 /build/
 /dist/
 /swift-module-cache/
+
+# Generated test coverage and test environments
+.coverage
+.coverage.*
+/coverage.xml
+/htmlcov/
+.tox/
+.nox/
+
+# Local-only checks and preserved deferred implementation
+# Kept out of Git at the owner's request; these remain runnable/readable locally.
+/tests/
+/.local-archive/
 
 # Raw experiments, datasets, model artifacts, and local telemetry
 /runs/
