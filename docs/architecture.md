@@ -1,6 +1,6 @@
 # Proposed architecture
 
-Updated October 24, 2026. The requirements are agreed; the design below is a recommendation to review before implementation. The premature prototype was deleted. No live session integration, classifier adapter, or accounting implementation exists.
+Updated October 25, 2026. The active implementation is a direct hosted TypeSafe Jev client and a default request-preview script; no live request has been validated. Routing, the terminal product, Codex integration, and evaluation below remain planned. Deferred simulation code is archived locally. Follow the Jev-first [development plan](development-plan.md) and stop for owner review after every phase.
 
 ## Product and stack boundary
 
@@ -58,7 +58,7 @@ Keep category questions independent of model IDs and prices; the policy receives
 | Policy decision | Consumed classification, mapping version, eligible configurations, selected configuration, fallback/rejection reason, budget reservation, links to state and classifier result. |
 | Execution record | Codex thread/turn IDs, requested/accepted/observed settings, timestamps, completion/cancel/error reason, usage availability and artifact links. |
 
-Define one versioned JSON Schema contract for the router, runner, and stored artifacts even when they share a language. [First-build defaults](first-build-defaults.md) now selects the offline record fields, input-size behavior, deadlines, and fixture fallback; real-provider mapping/settings remain separately gated. JSONL event logs and hashed manifests provide the initial storage boundary; add Parquet only if analysis benefits.
+The current client uses provisional taxonomy `draft-1`, response records `jev-classification-1`, and prompt-only input policy `prompt-only-1`. It sends one request with three Choice questions to TypeSafe's System One endpoint and pins `jev-1.14.0`. Prompt text is capped at 16,384 UTF-8 bytes, rejected without truncation when oversized. Default preview prints the exact request; explicit live mode requires an API key. Response validation retains category scores, requested/returned model IDs, hashes, latency, and available usage, without inventing billing. Errors produce no labels and are not retried. See [the client](../src/adaptive_coding_agents/jev.py) and [README](../README.md) for the implemented boundary. Shared routing/evaluation schemas and persistent event storage are future work.
 
 Option probability measures preference among category labels, not coding-task success. Do not use it as a claimed success probability. Keep a valid unknown/insufficient-evidence category distinct from malformed output, timeout, and unsupported policy routes. Define the handling of each before implementation and include every classifier question in cost and latency accounting.
 
@@ -88,4 +88,4 @@ The detailed protocol is in [Evaluation](evaluation.md). Precise container image
 
 ## Design gate
 
-The owner selected [conservative defaults](first-build-defaults.md) for the first offline slice: records, input limits, fixture policy/fallback, session state, retries/timeouts, and accounting. That slice starts in the next resumed development session. Resolve compatible real-client pins, actual configuration access, reviewed live caps, and benchmark isolation before dependent work. Live validation follows a clear design; the architecture is not evidence of implementation.
+Phase 1 ends with local tests and owner review of the direct Jev client and request preview. Phase 2 requires explicit instruction, TypeSafe account setup, and a reviewed estimate/cap before real classification and accuracy evaluation. Routing/CLI work follows Phase 2 review. Resolve compatible Codex client pins, configuration access, live caps, and benchmark isolation before dependent work. The planned architecture is not evidence of live behavior or performance.

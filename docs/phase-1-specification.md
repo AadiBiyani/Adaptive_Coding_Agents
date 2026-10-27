@@ -1,8 +1,8 @@
-# Phase 1 specification
+# Classifier and research contracts
 
-Started October 24, 2026. This phase is in progress and contains requirements plus proposed contracts, not implemented behavior. The owner confirmed task type plus a few signals, classification of only the specific current user prompt, and automatic reliable fallback for insufficiently informative prompts. Exact categories will be developed using training/development examples. No application code, test cases, model calls, or paid jobs were created for this specification.
+Started October 24, 2026; updated October 25. This filename comes from the earlier roadmap. The current Jev-first phases are in [Development plan](development-plan.md). This document retains the research contracts and future policy requirements; README and HANDOFF describe implemented behavior. The owner confirmed task type plus signals, current-prompt-only classification, and eventual automatic reliable fallback. Research categories will be reviewed on training/development examples.
 
-**First-build contract selected:** The owner delegated conservative defaults and said development would begin tomorrow. [First-build defaults](first-build-defaults.md) now supplies exact offline record fields, fixture taxonomy/configurations, limits, fallback, session behavior, accounting, and runtime setup direction. That independent slice is ready for the next resumed development session. Broader experiment and live-adapter gates below remain open; no coding or installation was done tonight.
+**Current checkpoint:** The active hosted TypeSafe client uses explicit provisional `draft-1` questions and validates actual provider response shapes. The old fixture defaults and implementation are archived locally. Live classification, reviewed accuracy labels, and routing policy evidence are not yet established. Stop after each current phase for owner review.
 
 ## Confirmed product flow
 
@@ -22,7 +22,7 @@ The policy may still use the supported-configuration registry, measured training
 
 For a short follow-up such as “try again,” return unknown/insufficient evidence where appropriate. **The owner selected automatic use of a predefined reliable fallback within the remaining budget**, without asking for clarification solely to classify that prompt. Select the fallback using development evidence; its exact model/effort is not fixed yet. If no valid fallback fits remaining limits or availability, stop with an explicit budget/availability outcome. This does not suppress normal Codex tool approvals or questions needed to perform the coding task.
 
-Keep the submitted prompt and actual classifier input auditable. The selected first-build default limits classifier prompt text to 16,384 UTF-8 bytes; oversized text skips classification and falls back while preserving the full executor prompt. Reject non-text input initially. These application limits are not provider token limits. Do not silently summarize, enrich, or truncate user content; any later change must be explicit and shared across comparison arms. Category annotations must use the same prompt-only view.
+Keep the submitted prompt and actual classifier input auditable. The classifier-only client limits prompt text to 16,384 UTF-8 bytes; oversized or non-text input is rejected locally. It has no executor or routing fallback. Future product integration must preserve the complete executor prompt when classification is skipped. These application limits are not provider token limits. Do not silently summarize, enrich, or truncate content; changes must be explicit and shared across comparison arms. Category annotations use the same prompt-only view.
 
 ## Context as a later research option
 
@@ -46,11 +46,11 @@ The owner selected **task type plus a few signals**. The following three fields 
 
 Use one typed categorical answer per field, with versioned definitions and optional option scores where available. Keep the question count small. The [hosted Jev guide](https://openrouter.ai/docs/guides/community/jev) describes typed questions, and the [OpenJev model card](https://huggingface.co/openjev/openjev) describes one forward pass per question even when several questions share a request. Three fields therefore do not imply one classifier forward pass. Measure the complete overhead and decide whether each signal earns its cost on development data.
 
-Use the explicitly versioned `draft-0` fixture taxonomy in the offline foundation. Refine definitions, mixed/out-of-scope handling, and annotation rules before enabling real classification or collecting labels. Keep unknown/insufficient-evidence answers distinct from malformed responses and endpoint failures. Review training/development examples for coverage, ambiguity, and signal diversity. Ordinary SWE-bench tasks may share the same broad type; measure whether extra signals help. Freeze a taxonomy version before generating its labels and the final taxonomy before held-out evaluation. Changed taxonomy requires consistent artifact versioning/relabeling.
+The active client uses provisional `draft-1` definitions in [taxonomy.py](../src/adaptive_coding_agents/taxonomy.py). Category names are retained, with explicit descriptions for repair with supporting diagnosis/tests, concrete evidence, and scope actually described in the prompt. Review these on training/development examples before accuracy evaluation and label collection. Unknown answers remain distinct from malformed responses and API failures. Ordinary SWE-bench tasks may share the same broad type; measure whether extra signals help. Freeze definitions before held-out evaluation. Changes require consistent versioning and relabeling.
 
 ## Classifier and policy boundary
 
-The classifier receives only the current prompt as task content, as specified above. Task labels should be independent of model names and prices, so the classifier payload excludes the GPT registry and provider pricing. The policy receives the classification plus registry availability, remaining limits, and development-derived performance estimates. First-build size/error defaults are now specified separately; additional task-context sources remain excluded.
+The classifier receives only the current prompt as task content, as specified above. Task labels are independent of coding-model names and prices, so the payload excludes the GPT registry and pricing. The future policy receives the classification plus registry availability, remaining limits, and development-derived performance estimates. Current size/error behavior is documented in README; additional task-context sources remain excluded.
 
 Each classification record must preserve taxonomy/question versions, input hash, predicted labels, available scores, classifier identity, per-question work, latency, and usage/cost provenance. Each policy record must separately preserve its mapping version, the classifications consumed, eligible configurations, selected model/effort, and any fallback reason. Missing usage remains unknown rather than zero.
 
@@ -79,11 +79,11 @@ Report how often fine-tuning changes categories and final routes, together with 
 | Classification then routing | Confirmed by owner | Preserve this boundary throughout implementation and evaluation. |
 | Task type plus signals | Confirmed structure; draft labels above | Review development examples, settle definitions, unknown/mixed handling, and a labeling process. |
 | Classifier input | Confirmed prompt-only; first-build size/error defaults selected | Validate provider-specific limits when adding real adapters; keep Codex context separate. |
-| Ambiguous prompt handling | Automatic fallback; fixture default and error rules selected | Choose the real reliable fallback from access checks and development evidence. |
-| Policy and registry | Offline lookup/eligibility contracts selected | Replace fixture entries with measured mapping and verified live settings before real routing. |
-| Terminal/session behavior | Offline state/queue/approval/cancellation defaults selected | Verify compatible published SDK/runtime and protocol behavior before the real adapter. |
-| Limits and accounting | Offline deadlines, zero retries, reservations, and $0 external-spend default selected | Review exact run estimates and stage caps before live work; cloud cash remains below $50 cumulatively. |
+| Ambiguous prompt handling | Client preserves unknown categories; product fallback remains planned | Choose the reliable fallback from access checks and development evidence. |
+| Policy and registry | Deferred implementation archived | Establish measured mapping and verified live settings before real routing. |
+| Terminal/session behavior | Deferred implementation archived | Verify compatible SDK/runtime and session behavior before reintroducing the adapter. |
+| Limits and accounting | Client byte limit, socket timeout, no retries, nullable usage; no authorized spend | Review estimates and caps before live work; cloud cash remains below $50 cumulatively. |
 | Training/evaluation records | Category labels and routing outcomes separated | Fix manifests, grouped splits, annotation provenance, policy calibration, isolation, and reproducibility metadata. |
 | Study analysis | Tuned/untuned primary contrast; correctness first | Specify final reliability margin, uncertainty analysis, and affordable sample using development evidence. |
 
-The first offline slice has a concrete contract and may begin when development resumes tomorrow. Phase 1's broader live/research specification is not complete; resolve each remaining gate before its dependent work. The master [Development plan](development-plan.md) governs later integration, measurement, training, and evaluation.
+The active client checkpoint stops at local validation and owner review. Resolve each remaining research/live gate before dependent work. The [Development plan](development-plan.md) governs the Jev-first phase sequence and mandatory review stops.
