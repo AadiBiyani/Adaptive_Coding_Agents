@@ -73,3 +73,5 @@ node_modules/
 
 # Keep small reviewed reports/configuration/manifests trackable.
 # Inspect staged content before committing; ignore rules do not remove tracked files.
+.python-version
+examples

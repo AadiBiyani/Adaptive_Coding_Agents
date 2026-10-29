@@ -42,6 +42,7 @@ class JevError(RuntimeError):
         self.request_attempted = False
         self.elapsed_ms = 0
         self.usage = TokenUsage()
+        self.returned_model: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -51,6 +52,7 @@ class JevError(RuntimeError):
             "request_attempted": self.request_attempted,
             "elapsed_ms": self.elapsed_ms,
             "usage": self.usage.to_dict(),
+            "returned_model": self.returned_model,
         }
 
 
@@ -154,6 +156,7 @@ class JevClient:
         body = encode_request(build_request(prompt))
         started = time.perf_counter()
         usage = TokenUsage()
+        returned_model = None
         try:
             raw = _post(body, self._api_key, self._timeout)
             try:
@@ -163,9 +166,10 @@ class JevClient:
             if not isinstance(response, dict):
                 raise ContractError("invalid_response", "Expected a response object.")
             usage = _usage(response.get("usage"))
-            returned_model = response.get("model")
-            if not isinstance(returned_model, str) or not returned_model.strip():
+            model_value = response.get("model")
+            if not isinstance(model_value, str) or not model_value.strip():
                 raise ContractError("invalid_response", "Missing returned model identifier.")
+            returned_model = model_value
             answers = _answers(response.get("answers"))
             return Classification(
                 prompt_record, hashlib.sha256(body).hexdigest(), MODEL, returned_model,
@@ -176,4 +180,5 @@ class JevClient:
             error.request_attempted = True
             error.elapsed_ms = round((time.perf_counter() - started) * 1000)
             error.usage = usage
+            error.returned_model = returned_model
             raise error from None

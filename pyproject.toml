@@ -1,0 +1,14 @@
+[project]
+name = "adaptive-coding-agents"
+version = "0.1.0"
+description = "Prompt-only Jev routing into the Codex coding workflow"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["openai-codex==0.163.0"]
+
+[project.scripts]
+adaptive-code = "adaptive_coding_agents.cli:main"
+
+[build-system]
+requires = ["uv_build==0.11.16"]
+build-backend = "uv_build"
