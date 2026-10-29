@@ -12,26 +12,33 @@ import time
 from typing import Callable
 
 from openai_codex.client import CodexClient, CodexConfig
-from openai_codex.generated.v2_all import ModelListResponse
+from openai_codex.generated.v2_all import ConfigReadResponse, ModelListResponse
 from openai_codex.models import UnknownNotification
 
+from .budget import coding_estimate, money
+from .credentials import validate_openai_key
 from .records import ContractError
 from .routing import CONFIGURATIONS, Configuration
 from .workflow_records import WorkflowRecord
 
 SDK_VERSION = "0.163.0"
+CODEX_PROVIDER = "adaptive-openai"
 
 
 class CodexSession:
     def __init__(self, cwd: Path, *, timeout_seconds: float,
                  approval_handler: Callable, emit: Callable,
-                 record: WorkflowRecord, client: CodexClient | None = None):
+                 record: WorkflowRecord, openai_api_key: str,
+                 client: CodexClient | None = None, cancel_event: threading.Event | None = None):
         self.record = record
         self.emit = emit
         self.cwd = cwd
         self.thread_id: str | None = None
         self.turn_id: str | None = None
+        self._openai_api_key = openai_api_key
         self.expired = threading.Event()
+        self.cancel_event = cancel_event
+        self._watch_done = threading.Event()
         self._closed = False
         self._close_lock = threading.Lock()
         self._timer = threading.Timer(timeout_seconds, self._expire)
@@ -40,9 +47,21 @@ class CodexSession:
             CodexConfig(
                 cwd=str(cwd), client_name="adaptive_coding_agents",
                 client_title="Adaptive Coding Agents", experimental_api=False,
+                config_overrides=(
+                    'cli_auth_credentials_store="ephemeral"', 'forced_login_method="api"',
+                    'model_provider="adaptive-openai"',
+                    'model_providers.adaptive-openai.name="OpenAI"',
+                    'model_providers.adaptive-openai.wire_api="responses"',
+                    'model_providers.adaptive-openai.requires_openai_auth=true',
+                    'model_providers.adaptive-openai.base_url="https://api.openai.com/v1"',
+                    'service_tier="default"', 'features.multi_agent=false', 'web_search="disabled"',
+                    'model_providers.adaptive-openai.request_max_retries=0',
+                    'model_providers.adaptive-openai.stream_max_retries=0',
+                    'shell_environment_policy.exclude=["*KEY*", "*TOKEN*", "*SECRET*"]',
+                ),
                 # SDK env values overlay the inherited environment. Blank this
                 # key so Codex's tools cannot inherit the classifier credential.
-                env={"TYPESAFE_API_KEY": ""},
+                env={"TYPESAFE_API_KEY": "", "OPENAI_API_KEY": "", "CODEX_API_KEY": ""},
             ),
             approval_handler=approval_handler,
         )
@@ -51,6 +70,12 @@ class CodexSession:
         self.expired.set()
         self.close()
 
+    def _watch_cancel(self) -> None:
+        while not self._watch_done.wait(0.1):
+            if self.cancel_event is not None and self.cancel_event.is_set():
+                self.close()  # Billing remains uncertain; workflow never replays.
+                return
+
     def close(self) -> None:
         with self._close_lock:
             if not self._closed:
@@ -58,26 +83,48 @@ class CodexSession:
                 self.client.close()
 
     def __enter__(self):
+        validate_openai_key(self._openai_api_key)
         for distribution in ("openai-codex", "openai-codex-cli-bin"):
             if version(distribution) != SDK_VERSION:
                 raise ContractError("runtime_version_mismatch", "Run uv sync to restore the pinned Codex SDK and runtime.")
         try:
+            self.record.update(stage="codex_start")
             self.client.start()
             self._timer.start()
+            if self.cancel_event is not None:
+                threading.Thread(target=self._watch_cancel, daemon=True).start()
+            self.record.update(stage="codex_initialize")
             self.client.initialize()
             self.record.update(codex_sdk_version=SDK_VERSION, codex_runtime_version=SDK_VERSION)
+            self.record.update(stage="codex_config")
+            effective = self.client.request("config/read", {"cwd": str(self.cwd), "includeLayers": False},
+                                            response_model=ConfigReadResponse).config.model_dump(mode="json")
+            if effective.get("cli_auth_credentials_store") != "ephemeral":
+                raise ContractError("credential_store_mismatch", "Codex did not confirm in-memory credential storage. The API key was not sent.")
+            # Explicit API authentication for this process. Never silently use
+            # the owner's ChatGPT subscription or overwrite stored login state.
+            self.record.update(stage="codex_authentication")
+            self.client.account_login_start({"type": "apiKey", "apiKey": self._openai_api_key})
+            account = self.client.account_read({"refreshToken": False})
+            if account.account is None or account.account.model_dump(mode="json").get("type") != "apiKey":
+                raise ContractError("authentication_mismatch", "Codex did not confirm API-key authentication; no inference was started.")
+            self.record.update(authentication="apiKey", billing_path="openai_api",
+                               credentials_store="ephemeral", requested_provider_retries=0)
             return self
         except BaseException:
+            self._watch_done.set()
             self._timer.cancel()
             self.close()
             raise
 
     def __exit__(self, *_):
+        self._watch_done.set()
         self._timer.cancel()
         self.close()
 
     def eligible_configurations(self) -> set[str]:
         """Read all catalog pages, without assuming API docs imply access."""
+        self.record.update(stage="model_catalog")
         cursor = None
         seen = set()
         supported = set()
@@ -105,19 +152,27 @@ class CodexSession:
             seen.add(cursor)
         raise ContractError("invalid_model_catalog", "Codex model pagination did not complete; no Jev request was sent.")
 
-    def execute(self, prompt: str, configuration: Configuration) -> str:
+    def execute(self, prompt: str, configuration: Configuration, *,
+                resume_thread_id: str | None = None, reservation_usd=None,
+                before_dispatch: Callable = lambda: None) -> str:
         """Execute exactly one new user turn, with explicit model and effort.
 
         A completed turn is not a claim of task correctness. Codex's internal
         calls/retries and billed cost may not be exposed by the protocol.
         """
-        self.record.update(stage="thread_start", requested_configuration=asdict(configuration))
-        response = self.client.thread_start({
-            "cwd": str(self.cwd), "model": configuration.model, "modelProvider": "openai",
+        if self.cancel_event is not None and self.cancel_event.is_set():
+            raise ContractError("cancelled", "Stopped before starting the coding turn.")
+        stage = "thread_resume" if resume_thread_id else "thread_start"
+        self.record.update(stage=stage, requested_configuration=asdict(configuration))
+        params = {
+            "cwd": str(self.cwd), "model": configuration.model, "modelProvider": CODEX_PROVIDER,
             "config": {"model_reasoning_effort": configuration.effort},
             "approvalPolicy": "on-request", "approvalsReviewer": "user",
             "sandbox": "workspace-write",
-        })
+            "serviceTier": "default",
+        }
+        response = (self.client.thread_resume(resume_thread_id, {**params, "excludeTurns": True})
+                    if resume_thread_id else self.client.thread_start(params))
         self.thread_id = response.thread.id
         accepted = {
             "model": response.model,
@@ -126,6 +181,12 @@ class CodexSession:
             "service_tier": response.service_tier,
         }
         self.record.update(thread_id=self.thread_id, accepted_thread_configuration=accepted)
+        if ((resume_thread_id is not None and self.thread_id != resume_thread_id) or
+                Path(response.cwd.model_dump(mode="json")).resolve() != self.cwd or
+                Path(response.thread.cwd.model_dump(mode="json")).resolve() != self.cwd):
+            raise ContractError("thread_mismatch", "Codex returned a different thread or workspace; no turn was started.")
+        if response.thread.status.model_dump(mode="json").get("type") != "idle":
+            raise ContractError("thread_busy", "The Codex thread is not idle. No prompt was steered into an active turn.")
         if (response.approval_policy.model_dump(mode="json") != "on-request" or
                 response.approvals_reviewer.value != "user" or
                 response.sandbox.model_dump(mode="json").get("type") != "workspaceWrite"):
@@ -133,20 +194,27 @@ class CodexSession:
         if response.service_tier not in (None, "default", "standard"):
             raise ContractError("unexpected_service_tier", "Codex selected a nonstandard service tier. Review its pricing before a coding turn.")
         if (accepted["model"], accepted["effort"], accepted["provider"]) != (
-                configuration.model, configuration.effort, "openai"):
+                configuration.model, configuration.effort, CODEX_PROVIDER):
             raise ContractError("configuration_mismatch", "Codex did not confirm the requested model, effort, and provider. No coding turn was started.")
         self.emit("configuration/accepted", accepted)
+        if self.expired.is_set():
+            raise ContractError("coding_timeout", "The local deadline expired before turn dispatch.")
+        if self.cancel_event is not None and self.cancel_event.is_set():
+            raise ContractError("cancelled", "Stopped before turn dispatch.")
         # Persist the uncertain intent BEFORE dispatch. A transport failure can
         # occur after acceptance; never automatically replay turn/start.
         self.record.update(stage="turn_start", coding_request_attempted=None)
+        before_dispatch()
         started = time.monotonic()
         response = self.client.turn_start(self.thread_id, prompt, {
             "model": configuration.model, "effort": configuration.effort,
             "approvalPolicy": "on-request", "approvalsReviewer": "user",
+            "serviceTier": "default",
         })
         self.turn_id = response.turn.id
         self.record.update(turn_id=self.turn_id, coding_request_attempted=True,
                            turn_start_acknowledged=True, stage="coding")
+        previous_usage = None
         try:
             while True:
                 notification = self.client.next_turn_notification(self.turn_id)
@@ -165,9 +233,23 @@ class CodexSession:
                     usage = data["tokenUsage"]["total"]
                     if any(type(value) is not int or value < 0 for value in usage.values() if value is not None):
                         raise ContractError("invalid_codex_usage", "Codex returned invalid token counts.")
-                    # One fresh thread here: total is cumulative for this run.
-                    # Replace it, never sum cumulative notifications.
-                    self.record.update(coding_usage={"source": "codex_thread_total", **usage})
+                    if previous_usage is not None and any(usage[k] < previous_usage[k] for k in ("inputTokens", "outputTokens")):
+                        self.client.turn_interrupt(self.thread_id, self.turn_id)
+                        raise ContractError("usage_reset", "Usage counters decreased during execution; accounting is uncertain.")
+                    previous_usage = usage
+                    # Never sum repeated cumulative events. On resume, we cannot
+                    # assume whether the server restored or reset its counters.
+                    # Charge full observed totals conservatively for admission,
+                    # and leave actual per-turn experimental usage unavailable.
+                    estimate = coding_estimate(usage, configuration.model)
+                    self.record.update(coding_usage={"source": "codex_thread_total", **usage},
+                        coding_turn_usage=None if resume_thread_id else usage,
+                        coding_admission_estimate=estimate)
+                    if estimate["amount_usd"] is None or (reservation_usd is not None and
+                            money(estimate["amount_usd"]) >= money(reservation_usd)):
+                        self.record.update(budget_interrupted=True)
+                        self.client.turn_interrupt(self.thread_id, self.turn_id)
+                        raise ContractError("turn_budget_reached", "Observed usage reached the turn reservation. Interrupted; final provider usage may still be pending.")
                 elif notification.method == "model/rerouted":
                     self.record.update(observed_reroute={key: data.get(key) for key in ("fromModel", "toModel", "reason")})
                     self.client.turn_interrupt(self.thread_id, self.turn_id)
@@ -177,7 +259,8 @@ class CodexSession:
                     turn = data["turn"]
                     if turn["id"] != self.turn_id:
                         raise ContractError("unexpected_codex_event", "The completion belongs to another turn.")
-                    self.record.update(coding_elapsed_ms=round((time.monotonic() - started) * 1000))
+                    self.record.update(coding_elapsed_ms=round((time.monotonic() - started) * 1000),
+                                       turn_completion_observed=True)
                     return turn["status"]
         finally:
             self.client.unregister_turn_notifications(self.turn_id)

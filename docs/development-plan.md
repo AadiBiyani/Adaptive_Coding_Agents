@@ -1,8 +1,8 @@
 # Jev-first development plan
 
-Updated October 28, 2026. This roadmap supersedes the earlier fixture-first sequence and inactive course schedule. **Stop after every phase for owner testing and code review. Begin the next phase only after explicit instruction.** Within later phases, deliver small reviewable slices; phase approval does not authorize unestimated spending.
+Updated October 29, 2026. This roadmap supersedes the earlier fixture-first sequence and inactive course schedule. **Stop after every phase for owner testing and code review. Begin the next phase only after explicit instruction.** Within later phases, deliver small reviewable slices; phase approval does not authorize unestimated spending. The owner runs all commands that consume tokens or money.
 
-**Latest owner direction:** implement the stakeholder prototype in five separately reviewed parts: (1) single-prompt terminal routing and Codex execution; (2) continuity, fallback, and budgets; (3) development-measured routing policy; (4) a small SWE-bench comparison; (5) repeatable demo/review material. Part 1 code and offline protocol checks are implemented; stop for owner review and a scoped live-integration decision. This instruction permits that integration work while classifier accuracy remains pending; it does not retroactively complete Phase 2 or authorize extra paid calls. Untuned/fine-tuned OpenJev and the full controlled study remain project deliverables after the preliminary review.
+**Latest owner direction:** implement the stakeholder prototype in five separately reviewed parts: (1) single-prompt terminal routing and Codex execution; (2) continuity, fallback, and budgets; (3) development-measured routing policy; (4) a small SWE-bench comparison; (5) repeatable demo/review material. Part 1 was reviewed. Part 2 code and classifier pilot tooling are implemented. The owner then requested a local React/shadcn interface, a Tests tab, and frontend/backend organization; that slice passes 118 offline checks and actual local test-API verification. Stop for owner review before Part 3. This permits integration work while real classifier accuracy remains pending; it does not retroactively complete Phase 2. Untuned/fine-tuned OpenJev and the full controlled study remain project deliverables. See [HANDOFF](../HANDOFF.md) for current evidence and review commands.
 
 ## Phase 1 — Repository cleanup and direct Jev client
 
@@ -10,11 +10,11 @@ Preserve deferred code in an ignored verified archive. Remove simulated CLI/rout
 
 Implement direct hosted TypeSafe Jev classification through the documented System One API. Use only the current prompt plus fixed category questions/definitions, with no context enrichment. Start with the existing three category fields, explicit provisional definitions, and pinned `jev-1.14.0`. Preview requests by default; live mode requires an explicit flag and API key. Reject oversize input unchanged, validate responses, preserve unknowns and missing usage, and report failures without automatic retries or invented predictions.
 
-**Owner checkpoint:** inspect the code and request preview, run the local network-free tests, and review README architecture. Live inference is not validated by these checks. No accounts, calls, purchases, benchmarks, or training in this phase. Exact commands and files are in [README](../README.md#test-this-checkpoint-yourself).
+**Owner checkpoint:** inspect the code and request preview, run the local network-free tests, and review README architecture. Live inference is not validated by these checks. No accounts, calls, purchases, benchmarks, or training in this phase. General setup is in [README](../README.md#getting-started); current review commands are in [HANDOFF](../HANDOFF.md#manual-review).
 
 ## Phase 2 — Real Jev classification and accuracy
 
-**Current checkpoint:** Phase 1 and the recording slice are reviewed. On October 28 the owner authorized one real Jev request under the discussed small-cost estimates and reported $5 of Jev credits to use sparingly. The key is exported in the owner's terminal but absent from the agent process, so the owner will run the existing command there. Inspect that result and stop before additional calls. Proposed later pilot: 20 development prompts and 20 held-out prompts, independently reviewed before calls; no dataset, accuracy runner, or batch authorization exists yet.
+**Current checkpoint:** Phase 1 and the recording slice are reviewed, and one real Jev response is recorded. The 20-development/20-held-out diagnostic dataset and accuracy runner are implemented, but labels await human review and no accuracy batch has run. The reviewed allocation is $0.05 Jev and $2 OpenAI, with at most 43 Jev requests and three coding user turns. The owner runs those commands; the allocation covers one 40-example classifier pass plus three routed turns. Do not add unreviewed retries or repeated experiments.
 
 After Phase 1 review and explicit instruction:
 
@@ -44,4 +44,4 @@ Retain the full research deliverables:
 
 ## Constraints throughout
 
-No automatic paid runs. The reported OpenAI credits are not spending authorization. Review each purpose-specific estimate and cap; keep cumulative cloud/non-OpenAI cash spending strictly below $50 unless separately reviewed. The previous declined Codex account/model inspection remains blocked without renewed authorization. Do not commit or push unless requested. Keep secrets, private evidence/conversations, raw datasets, and course material out of Git. Claims require real evidence; unit-test mocks are never experimental results.
+No agent-executed paid runs. The reported OpenAI credits are not spending authorization. Review each purpose-specific estimate and cap; keep cumulative cloud/non-OpenAI cash spending strictly below $50 unless separately reviewed. An authorized no-inference preflight has confirmed authentication and catalog eligibility; live coding verification remains pending. Do not commit or push unless requested. Keep secrets, private evidence/conversations, raw datasets, and course material out of Git. Claims require real evidence; unit-test mocks are never experimental results.

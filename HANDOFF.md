@@ -1,65 +1,98 @@
 # Development handoff
 
-Updated October 28, 2026 for the stakeholder prototype Part 1 implementation.
+Updated October 29, 2026. README remains the overall project summary with its full architecture diagram. Keep temporary review instructions here.
 
-## Current instruction
+## Current owner instruction and pause point
 
-The owner authorized implementation of the five stakeholder-prototype parts, stopping after **each part** for manual tests and review: (1) single-prompt Jev routing into Codex; (2) continuity, fallback, and budgets; (3) a development-measured policy; (4) a small SWE-bench comparison; (5) repeatable demo/review material. This turn implements Part 1 only. Stop for review; do not start Part 2 or silently mark classifier accuracy complete. The latest instruction permits this integration work despite the earlier roadmap's pending accuracy checkpoint.
+The owner requested a ChatGPT-style JavaScript/React/shadcn frontend, then a Tests tab and a clean frontend/backend layout. This slice is implemented and verified offline. Stop for the owner's manual review before additional product or research phases. Part 3's development-measured policy, SWE-bench execution, and OpenJev training have not started.
 
-The owner separately authorized one standalone Jev request under the previously discussed fractions-of-a-cent estimates and reported $5 of Jev credits to use sparingly. That authorization persists but does not cover a routed coding turn. No real Jev/Codex call, account/model inspection, benchmark, training, commit, or push was performed here. Public package metadata and dependency installation were approved; they do not authorize model usage. Do not ask for credentials in chat or search unrelated credential stores.
+**Only the owner performs actions that consume model tokens or money.** Agents may write code and run offline checks. Do not send coding prompts, run a live classifier batch, or start training on the owner's behalf. No paid inference was executed during this UI/testing/cleanup slice.
 
-## Active implementation
+## Layout and entry points
 
-- Python 3.12.15, uv/uv_build 0.11.16. Added exact dependency `openai-codex==0.163.0`, whose bundled runtime is also pinned to `0.163.0`; `uv.lock` records dependencies. The global CLI reports `0.165.0` and is not used by the adapter. No private SDK fields are modified.
-- `cli.py`: installed `adaptive-code` entrypoint with `preview`, manual-label `route`, and explicit `run --live`. Preview makes no calls or files. The terminal streams output and handles approvals explicitly; noninteractive input declines actions.
-- `routing.py`: four documented Luna/Sol low/high candidates and `engineering-1`, an explicitly unvalidated mapping. Model/effort catalog eligibility is checked at runtime. Unknown categories and unavailable routes stop this slice; automatic reliable fallback and budgets remain Part 2.
-- `codex_session.py`: official lower-level typed client with explicit approvals, paginated catalog discovery, requested versus accepted thread settings, one new thread/turn, streamed events, cumulative usage replacement, a process watchdog, and no automatic replay. Accepted settings are not claimed to prove provider execution settings.
-- `workflow.py`: shared execution boundary for the terminal and future benchmarks. Only the exact current prompt reaches Jev; repository path and policy information stay outside its request. Codex gets the unchanged prompt and its normal tools.
-- `workflow_records.py`: pending/private/atomic workflow records in ignored `runs/coding/<run-id>/workflow.json`, linked to the existing Jev attempt recorder. No raw prompt/tool output/key is persisted in these records. Missing billed cost, internal call/retry counts, execution settings, and task success stay null.
-- `taxonomy.py`: three prompt-only Choice questions with explicit provisional `draft-1` definitions. Same category names as before; definitions now distinguish repair with supporting diagnosis/tests, concrete evidence, and scope actually stated in the prompt.
-- `records.py`: exact UTF-8 prompt hashing/validation, labels, classification records, nullable provider token usage.
-- `jev.py`: direct TypeSafe System One HTTP client pinned to `jev-1.14.0`; no retries/redirects, response validation, sanitized errors, requested/returned model IDs and latency. Constructing the client makes no call.
-- `run_records.py`: writes a private pending record before dispatch, then atomically saves the validated result or sanitized error in ignored `runs/jev/<run-id>/attempt.json`. Records hashes, fixed questions/snapshot, IDs, UTC timestamps, model, usage, and a dated cost estimate. No raw prompt or key is saved. Pending/interrupted attempts are uncertain and never replayed automatically; final storage failure exposes the observed result for recovery.
-- `scripts/classify_prompt.py`: file/stdin input, default request preview, explicit `--live` switch using `TYPESAFE_API_KEY`, optional `--example-id` and `--run-dir`. Preview prints the request and writes no files; live attempts use the recorder. Missing credentials produce a local error record with no HTTP request.
-- `jev.py` now preserves a valid returned model on answer-validation errors so reported usage can still receive a clearly labeled estimate. The client otherwise keeps the same request and category behavior.
-- `examples/python_bug_prompt.txt`: authored multiline review input, not a labeled accuracy dataset or result.
-- Local tests in ignored `tests/` intercept HTTP and block network access. They check software behavior, not classifier quality.
-- README has a GitHub Mermaid architecture diagram and exact commands for this checkpoint.
+- `frontend/`: JavaScript/JSX React app, Vite, Tailwind, and actual generated shadcn/ui components.
+- `backend/src/adaptive_coding_agents/`: Python API, Jev client, routing, shared Codex workflow, budgets, sessions, and local evaluation jobs.
+- `backend/scripts/`: classifier pilot preparation and the original classifier script still exercised by regression tests. The original script bypasses the newer budget; use the budgeted CLI for live requests.
+- Root `pyproject.toml` and `uv.lock`: Python dependency/packaging entry point, with `module-root = "backend/src"`. Existing `.venv/bin/adaptive-code` commands, `.env`, and data paths remain valid.
+- Ignored `tests/`: local regression and rendering checks. These are deliberately absent from fresh clones.
+- Ignored `runs/`: coding records, budgets, native-session handles, browser transcripts, evaluation reports, and default workspace.
+- `docs/`: retained project, architecture, evaluation, training, and research plans.
 
-The real API code is implemented but has not been exercised against TypeSafe or live Codex here. No classifier accuracy, coding correctness, cost savings, or live continuity is established. The new terminal is a single-prompt integration slice; Part 2 adds continuation/resume. A 16,384-byte prompt limit rejects oversized input without truncation; product fallback for oversized/unknown input remains future work. The provisional mapping is not backed by development outcomes. Jev estimates still use the dated October 27 rate only for the pinned returned model; missing usage or another model leaves the estimate unavailable. The watchdog closes the Codex process, while Jev has its own socket timeout. Neither is dollar-budget enforcement.
+The source move verified every moved file's hash before and after. Removed the unused frontend class-name helper and its direct dependencies, the unused preview command, stale generated schema/build outputs, and Python bytecode caches. Kept the installed environments, useful dependency caches, research documents, private records, and the owner's ignored historical archive. Nothing was committed or pushed.
 
-## Preserved work and Git hygiene
+## Implemented product
 
-The earlier fixture implementation, Codex protocol adapter, tests, original documents, and generated outputs were copied to `.local-archive/jev-first-20261025T193910Z/`. Its `manifest.json` verifies 386 original files by SHA-256, and `working-tree.patch` preserves the tracked changes from before cleanup. This is an ignored local archive, not available in a fresh clone. Do not restore it wholesale or restore the previously discarded JavaScript prototype.
+The Python backend uses the official `openai-codex==0.163.0` SDK and matching runtime. The terminal and browser call the same `run_prompt`; there is no second coding harness. Hosted TypeSafe requests pin `jev-1.14.0`, use the three fixed Choice questions, preserve missing usage, reject inputs over 16,384 UTF-8 bytes unchanged, and do not retry automatically.
 
-The previous simulation implementation was not restored. New routing/session code and the `adaptive-code` entrypoint were implemented for this slice around the official SDK. Obsolete first-build defaults, test/demo instructions, and the inactive milestone schedule stay archived. `/tests/`, `/.local-archive/`, and generated runs are ignored; local tests are intentionally absent from fresh clones. Existing edits to AGENTS, the Jev client/recorder/script, packaging, and documentation were preserved. This checkpoint is uncommitted with new source/packaging files still untracked. Inspect Git status before editing; do not attribute all preexisting changes to this turn.
+Jev receives only the exact newly submitted prompt plus fixed taxonomy definitions. Codex retains conversation/repository/tool context. The classifier returns labels; a separate provisional `engineering-2` policy selects Luna/Sol at low/high effort. Unknown labels can use eligible Sol/high fallback. This mapping has no measured reliability advantage. Invalid/provider-failed classifications stop.
 
-## Review commands
+The adapter preserves explicit approvals, checks API-key authentication and ephemeral credential storage, verifies catalog and accepted settings, resumes sessions, and records requested/accepted/observed configurations separately. Cancellation closes the owned process without replay. Uncertain billing retains reservations and blocks continuation.
+
+The React interface includes arbitrary coding prompts, incremental Markdown responses, copyable code, conversation history, routing details, approvals, stop, workspace selection/file previews, and light/dark modes. Files are written to the selected workspace; the default is `runs/workspaces/default/`. Browser prompt/response text and visible tool output are privately saved in `runs/ui/chats/`. Old CLI metadata cannot reconstruct response text.
+
+Spending reprices observed input/cache/output buckets for a selected fixed configuration, defaulting to Sol/high from the registry. It never runs that baseline. The routed side includes Jev's estimate. Dated rates and assumed cache lifetime are explicit, reasoning is not counted twice, and effort has no invented multiplier. These are pricing scenarios, not invoices, measured savings, or predictions of another model's token use. Resumed thread snapshots are labeled and never summed across runs.
+
+## Tests & analysis
+
+`evaluations.py` manages named local adapters; `evaluation_worker.py` produces structured unittest results in a separate process. The React Tests tab supports:
+
+- **Project checks:** the local Python suite for classifier contracts, routing, accounting, sessions, UI, and evaluation jobs.
+- **Frontend checks:** real React rendering checks without a browser or model call.
+- **Workspace tests:** trusted Python `unittest` files matching `test*.py` in the selected coding folder or a relative test subdirectory.
+
+Only a user-triggered Run starts a job. Duplicate IDs cannot replay it, one job runs at a time, and the browser prevents overlapping coding/test work through backend checks. Reports include progress, individual outcomes, bounded output, source fingerprints before/after, command/environment metadata, elapsed time, cancellation/timeouts, history, and JSON export. Empty suites and all-skipped suites are not reported as passes. Reports persist privately in `runs/evaluations/<id>/run.json`; restart marks unfinished jobs interrupted without replay.
+
+The runner strips inherited credentials. Workspace mode blocks ordinary Python network and child-process calls, but is **not an untrusted-code sandbox**. Do not run downloaded benchmark repositories on the host. Pytest-only suites or separate project environments are not supported by this slice. No model request is initiated by these adapters, and local results are not SWE-bench scores or independent claims that an agent solved a task.
+
+The UI is a foundation for later SWE-bench task/strategy analysis, not an implementation of the isolated evaluator. The separately budgeted classifier pilot remains a terminal operation after human annotation.
+
+## Verification and measured evidence
+
+All **118 offline Python tests passed** after the reorganization. The updated HTTP integration check also passed, exercising authenticated test submission, progress/results, duplicate protection, and an unchanged budget with an authored workspace fixture. React rendering and the production frontend build pass. Source distribution and wheel build under `.cache/build/`; inspection includes the UI/evaluation modules and excludes secrets, tests, run data, and node_modules.
+
+Both project and frontend adapters were then run through the actual localhost API. Project checks passed all 118 tests; the frontend rendering check passed. Their saved reports are:
+
+- `runs/evaluations/02865125-01ed-4fc2-afdc-d6f59454346d/run.json`
+- `runs/evaluations/2fde63a9-325e-4755-9c0b-cee78b804b57/run.json`
+
+The budget file was byte-for-byte unchanged across those API checks. These are real software-check results using mocked providers where appropriate, not research outcomes. Browser automation was unavailable; do not claim screenshot or visual interaction verification.
+
+The owner has run two paid coding turns. The first workflow, `runs/coding/f03dc87e-9892-402d-aaa2-d773f9853320/workflow.json`, selected/accepted Luna/low and repaired an authored empty-list bug. An independent rerun passed all three unchanged tests. Its session is `40bc5b35-64d9-4539-beb3-0cdad20b463a`, workspace `/private/tmp/adaptive-coding-agents-part2-plzv124v`.
+
+The second owner-run workflow, `runs/coding/3eea61b1-5eff-45e7-9be3-de1b9e81d509/workflow.json`, is recorded completed in the default browser workspace with estimated accounting and continuation allowed. Completion alone is not an independent task-success result. Neither run is SWE-bench evidence. Live session resumption/configuration-change/fallback verification remains pending.
+
+## Spending and remaining work
+
+The reviewed shared allocation is $0.05 Jev and $2 OpenAI, with 43 Jev requests and three coding turns. At the latest check two Jev requests and two coding turns were used; **one coding turn remains**. The recorded remaining admission amounts are $0.049922258 Jev and $1.97738875 OpenAI. They are not actual account balances or bills. Do not reset/increase the ledger or treat available credits as authorization. Cumulative cloud/non-OpenAI cash spending must remain below $50 unless separately reviewed.
+
+The classifier pilot has 20 development and 20 held-out authored prompts under ignored `data/classifier-pilot.json`. Labels remain unreviewed; no accuracy batch has run. `GROUPS` is split/group metadata, not a lookup from problems to executable tests. Human annotations must use only the current prompt. Held-out evaluation requires the frozen development report; no predictions may become their own gold labels.
+
+The primary future study remains fine-tuned versus untuned OpenJev with matched base checkpoint, taxonomy, downstream policy, harness, and evaluation conditions. Hosted Jev is a distinct comparison. Keep fixed, rule-based, and cheap learned controls; independent executable SWE-bench checks; controlled multi-turn analysis; grouped splits; cost/uncertainty reporting; and stakeholder review. No training, routing-quality, savings, novelty, or course-completion result has been established.
+
+## Manual review
+
+From the repository root:
 
 ```sh
-uv sync --locked --offline --no-python-downloads --cache-dir .cache/uv
-.venv/bin/adaptive-code preview --prompt-file examples/python_bug_prompt.txt
-.venv/bin/adaptive-code route --task-type fix --cause-evidence supporting_details --change-scope localized
-env -u TYPESAFE_API_KEY .venv/bin/adaptive-code run --prompt-file examples/python_bug_prompt.txt --live
-.venv/bin/python scripts/classify_prompt.py --prompt-file examples/python_bug_prompt.txt
-env -u TYPESAFE_API_KEY .venv/bin/python scripts/classify_prompt.py --prompt-file examples/python_bug_prompt.txt --example-id no-key-check --live
+uv sync --locked
+npm ci --prefix frontend
+npm run build --prefix frontend
+.venv/bin/adaptive-code ui
+```
+
+Open `http://127.0.0.1:8765`. The app was restarted after the folder move. Opening it and using Tests or Spending requires no inference. In Tests, run Project checks, then Frontend checks. To inspect generated-code tests, choose Workspace tests; use `.` for a root `test_cart.py` or `tests` for a subfolder. Inspect failures, history, and exported details.
+
+For coding review, only the owner sends a prompt. Select a workspace, inspect its route/response/files, and use the remaining coding turn deliberately; UI and CLI share the same cap. A new conversation starts a new Codex session; a follow-up in the existing conversation resumes it.
+
+Free local verification, when the ignored tests are present:
+
+```sh
 .venv/bin/python -m unittest discover -s tests -v
+node tests/ui-render.mjs
+.venv/bin/adaptive-code credentials
+.venv/bin/adaptive-code budget status
 ```
 
-Expected preview: `status: "preview"`, `request_attempted: false`, the unchanged prompt and three questions; no predicted categories or files. Manual-label routing selects Luna/low and identifies its policy as unvalidated. The `env -u` commands exit 1 with `missing_credentials` and a saved record, with no HTTP or Codex startup; the parent's key is unchanged. The original 40 tests plus 21 new checks cover the actual SDK against an offline JSON-RPC test server, including notification/response races, catalog pagination, exact prompt boundaries, setting mismatches, approval denial, usage deduplication, timeouts/disconnection, rerouting, and storage failure. Mocked responses are not research results. See README for the Part 1 commands and limits.
+The HTTP tests need permission to bind loopback ports. `tests/smoke_ui_evaluations.py` checks both offline adapters through the running UI and verifies an unchanged API budget. It does not submit chat prompts or classifier requests.
 
-Run once in the owner's terminal, where the key is exported:
-
-```sh
-.venv/bin/python scripts/classify_prompt.py --prompt-file examples/python_bug_prompt.txt --example-id first-live-check --live
-```
-
-Before any retry, inspect the saved `record_path`. No potential live-attempt record was found under `runs/jev/` at the October 28 check. A pending/interrupted attempt remains uncertain and must not be replayed automatically.
-
-## Continuing later
-
-Next: owner manual review of Part 1. A scoped live-integration estimate, permitted authentication/billing path, and renewed authorization for the previously declined account/model inspection are still needed before the agent runs the new coding path. Do not claim the Part 1 live acceptance check has passed. The earlier standalone Jev authorization remains separate: its one-call scenarios were $0.000084 at 2,000 input tokens or $0.00084 at 20,000, illustrative rather than measured bills. The assistant's former $0.01 planning ceiling was not a user-selected cap. The reported $5 balance is not permission for a batch. Classification accuracy, labeled data, later prototype parts, fine-tuning, and paper experiments remain pending. Keep cumulative cloud/non-OpenAI cash spending strictly below $50 unless separately reviewed.
-
-Preserve prompt-only classifier input and the separate routing policy. Compare hosted Jev, untuned/fine-tuned OpenJev, fixed/rules/cheap learned controls; hold taxonomy and policy fixed in the primary tuned/untuned comparison. Codex owns coding-session context; use one execution path for the product and benchmarks later. Category annotations and executable policy outcomes are separate evidence. SWE-bench, controlled multi-turn evaluation, and private stakeholder feedback remain planned.
-
-The earlier live Codex account/model inspection escalation was declined. Do not retry or bypass it without renewed authorization. Keep private evidence, contacts, course submissions, raw conversations, and credentials out of Git.
+The owner committed Part 1 as `fdd6830`; subsequent work remains uncommitted. Keep stakeholder evidence, personal contacts, course submissions, raw conversations, secrets, datasets, and generated reports out of Git. The ignored archive `.local-archive/jev-first-20261025T193910Z/` stays preserved. Stop here for review.

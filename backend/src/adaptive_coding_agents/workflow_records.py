@@ -24,7 +24,7 @@ class WorkflowRecord:
     def __init__(self, root: Path, prompt: PromptRecord, cwd: Path, timeout_seconds: float):
         self.path = root / str(uuid4()) / "workflow.json"
         self.data = {
-            "schema_version": "coding-workflow-1",
+            "schema_version": "coding-workflow-2",
             "status": "pending",
             "stage": "preflight",
             "started_at": now(),
@@ -42,6 +42,9 @@ class WorkflowRecord:
             "turn_start_acknowledged": False,
             "observed_execution_configuration": None,
             "coding_usage": None,
+            "coding_turn_usage": None,
+            "coding_admission_estimate": None,
+            "turn_completion_observed": False,
             "coding_billed_cost_usd": None,
             "coding_internal_call_count": None,
             "coding_internal_retry_count": None,

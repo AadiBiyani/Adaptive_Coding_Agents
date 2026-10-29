@@ -10,9 +10,10 @@ from .records import ContractError, Labels
 from .taxonomy import TAXONOMY_VERSION
 
 REGISTRY_VERSION = "gpt-pilot-1"
-POLICY_VERSION = "engineering-1"
+POLICY_VERSION = "engineering-2"
 POLICY_EVIDENCE = "unvalidated_engineering_mapping"
-CHECKED_ON = "2026-10-28"
+CHECKED_ON = "2026-10-29"
+DEFAULT_FALLBACK = "sol-high"
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,7 @@ class Route:
     configuration: Configuration
     labels: Labels
     reason: str
+    fallback: bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -62,18 +64,23 @@ def registry_preview() -> dict:
     }
 
 
-def select_route(labels: Labels, eligible: set[str] | None = None) -> Route:
+def select_route(labels: Labels, eligible: set[str] | None = None,
+                 fallback_id: str = DEFAULT_FALLBACK) -> Route:
     """Use labels only; eligibility is operational information, not a feature.
 
-    Unknowns stop this first slice. Automatic reliable fallback and its budget
-    rules belong to Part 2; do not pretend the provisional map establishes one.
-    An unavailable chosen route stops rather than silently switching models.
+    A fixed provisional fallback handles ambiguity or an unavailable preferred
+    route. It must fit both the supported catalog and remaining budget. Its
+    reliability is a hypothesis until the Part 3 development measurements.
     """
+    configurations = {config.id: config for config in CONFIGURATIONS}
+    if fallback_id not in configurations:
+        raise ContractError("invalid_fallback", "Fallback must be an explicit registry configuration.")
+    fallback = False
     if labels.task_type == "mixed_or_unclear" or "unknown" in (
         labels.cause_evidence, labels.change_scope,
     ):
-        raise ContractError("fallback_pending", "This prompt needs fallback handling, which is the Part 2 checkpoint. No coding turn was started.")
-    if labels.change_scope == "cross_component":
+        config_id, reason, fallback = fallback_id, "Prompt-only evidence is insufficient; provisional fallback.", True
+    elif labels.change_scope == "cross_component":
         config_id, reason = "sol-high", "Explicit cross-component scope."
     elif labels.task_type == "diagnose" or labels.cause_evidence == "hypothesis_only":
         config_id, reason = "luna-high", "Localized investigation or an unsupported cause hypothesis."
@@ -82,6 +89,7 @@ def select_route(labels: Labels, eligible: set[str] | None = None) -> Route:
     else:
         config_id, reason = "luna-low", "Localized repair with supporting details."
     if eligible is not None and config_id not in eligible:
-        raise ContractError("configuration_unavailable", f"The selected configuration {config_id} is not in Codex's supported catalog. No coding turn was started.")
-    config = next(item for item in CONFIGURATIONS if item.id == config_id)
-    return Route(config, labels, reason)
+        if fallback_id not in eligible:
+            raise ContractError("fallback_unavailable", "Neither the preferred route nor the fallback is eligible within availability and budget.")
+        config_id, reason, fallback = fallback_id, "Preferred configuration unavailable or outside budget; provisional fallback.", True
+    return Route(configurations[config_id], labels, reason, fallback)

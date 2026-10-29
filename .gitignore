@@ -39,6 +39,8 @@ node_modules/
 *.egg-info/
 /build/
 /dist/
+/frontend/dist/
+/backend/src/adaptive_coding_agents/web/
 /swift-module-cache/
 
 # Generated test coverage and test environments

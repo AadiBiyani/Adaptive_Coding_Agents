@@ -1,10 +1,10 @@
 # Proposed architecture
 
-Updated October 25, 2026. The active implementation is a direct hosted TypeSafe Jev client and a default request-preview script; no live request has been validated. Routing, the terminal product, Codex integration, and evaluation below remain planned. Deferred simulation code is archived locally. Follow the Jev-first [development plan](development-plan.md) and stop for owner review after every phase.
+Design baseline: October 25, 2026. The implementation has since added hosted classification, the terminal/Codex integration, and a localhost React frontend; the owner has verified one routed repair. See [HANDOFF](../HANDOFF.md) for current implementation and evidence. The research architecture below still includes future work. Deferred simulation code is archived locally. Follow the Jev-first [development plan](development-plan.md) and stop for owner review after every phase.
 
 ## Product and stack boundary
 
-Build a dedicated terminal command around the Codex harness. “Like OpenRouter” means a single routing entry point that selects among supported model/effort configurations. A public hosted gateway, billing service, dashboard, and full OpenAI-compatible API are outside the first product.
+Build a dedicated terminal command around the Codex harness. “Like OpenRouter” means a single routing entry point that selects among supported model/effort configurations. A public hosted gateway, billing service, and full OpenAI-compatible API are outside the first product. The owner's October 29 request adds a localhost ChatGPT-style interface using JavaScript, React, and shadcn/ui. It calls the existing Python workflow through a local API, with no second coding client or duplicated policy. Its Spending tab only reprices observed tokens; it does not run a fixed baseline or replace matched benchmark evaluation.
 
 The selected design uses Python for the initial terminal, routing policy, classifier clients, Codex app-server client, and run events, as well as task manifests, training, benchmarking, and analysis. Both interactive and benchmark entry points invoke the same coding execution path. The owner clarified that TypeScript was an earlier recommendation, not a required language.
 
@@ -23,6 +23,7 @@ The classifier input excludes history, repository metadata/content, tool results
 | Component | Language and responsibility |
 | --- | --- |
 | Terminal client | Python: prompt queue, routing display, streamed output, approvals, cancel/resume. |
+| Local browser client | JavaScript/React/shadcn in `frontend/`: chat, file previews, token-price comparisons, and local test results. Python APIs and adapters live in `backend/src/`; both product surfaces share the same coding path. |
 | Prompt encoder | Python: current prompt plus fixed category instructions; explicit input-size handling and no dynamic context enrichment. |
 | Configuration registry | Shared validated data: models, efforts, execution limits, access state, and dated rates. |
 | Classifier clients | Python: hosted Jev and OpenJev endpoints returning typed task categories/signals under one taxonomy contract. |
@@ -58,7 +59,7 @@ Keep category questions independent of model IDs and prices; the policy receives
 | Policy decision | Consumed classification, mapping version, eligible configurations, selected configuration, fallback/rejection reason, budget reservation, links to state and classifier result. |
 | Execution record | Codex thread/turn IDs, requested/accepted/observed settings, timestamps, completion/cancel/error reason, usage availability and artifact links. |
 
-The current client uses provisional taxonomy `draft-1`, response records `jev-classification-1`, and prompt-only input policy `prompt-only-1`. It sends one request with three Choice questions to TypeSafe's System One endpoint and pins `jev-1.14.0`. Prompt text is capped at 16,384 UTF-8 bytes, rejected without truncation when oversized. Default preview prints the exact request; explicit live mode requires an API key. Response validation retains category scores, requested/returned model IDs, hashes, latency, and available usage, without inventing billing. Errors produce no labels and are not retried. See [the client](../src/adaptive_coding_agents/jev.py) and [README](../README.md) for the implemented boundary. Shared routing/evaluation schemas and persistent event storage are future work.
+The current client uses provisional taxonomy `draft-1`, response records `jev-classification-1`, and prompt-only input policy `prompt-only-1`. It sends one request with three Choice questions to TypeSafe's System One endpoint and pins `jev-1.14.0`. Prompt text is capped at 16,384 UTF-8 bytes, rejected without truncation when oversized. Default preview prints the exact request; explicit live mode requires an API key. Response validation retains category scores, requested/returned model IDs, hashes, latency, and available usage, without inventing billing. Errors produce no labels and are not retried. See [the client](../backend/src/adaptive_coding_agents/jev.py) and [README](../README.md) for the implemented boundary. Current private coding records and local test records do not yet implement the complete benchmark contract below.
 
 Option probability measures preference among category labels, not coding-task success. Do not use it as a claimed success probability. Keep a valid unknown/insufficient-evidence category distinct from malformed output, timeout, and unsupported policy routes. Define the handling of each before implementation and include every classifier question in cost and latency accounting.
 
