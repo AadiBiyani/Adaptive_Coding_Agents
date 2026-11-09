@@ -10,7 +10,7 @@ from .workflow_records import now
 
 
 class SessionState:
-    def __init__(self, root: Path, cwd: Path, budget_file: Path, session_id: str | None):
+    def __init__(self, root: Path, cwd: Path, budget_file: Path, session_id: str | None, *, purpose="interactive"):
         if session_id is not None:
             try:
                 if str(UUID(session_id)) != session_id:
@@ -30,6 +30,8 @@ class SessionState:
                     raise ValueError
                 if self.data["cwd"] != str(cwd) or self.data["budget_file"] != str(budget_file.resolve()):
                     raise ContractError("session_mismatch", "Resume with the original workspace and budget file.")
+                if self.data.get("budget_purpose", "interactive") != purpose:
+                    raise ContractError("session_mismatch", "Resume with the original interactive or experiment allocation.")
                 if self.data["status"] != "ready":
                     raise ContractError("session_uncertain", "The previous turn is pending or uncertain. Inspect its record before resuming; no replay will occur.")
             except (OSError, KeyError, ValueError) as exc:
@@ -39,6 +41,7 @@ class SessionState:
         else:
             self.data = {"schema_version": "coding-session-1", "session_id": self.id,
                 "cwd": str(cwd), "budget_file": str(budget_file.resolve()), "created_at": now(),
+                "budget_purpose": purpose,
                 "thread_id": None, "status": "ready", "turns": [], "last_configuration": None}
             self.path.parent.mkdir(parents=True, mode=0o700)
             self.save()
@@ -49,7 +52,9 @@ class SessionState:
         except OSError:
             raise ContractError("session_storage_error", "Unable to save session state. Inspect the workflow record before resuming.") from None
 
-    def begin(self, record_path: Path):
+    def begin(self, record_path: Path, *, turn_limit: int | None = None):
+        if turn_limit is not None and len(self.data["turns"]) >= turn_limit:
+            raise ContractError("chat_turn_limit", "This coding session has reached its user-turn limit. Start a new chat/session; the shared spending budget still applies.")
         self.data.update(status="pending", active_record_path=str(record_path))
         self.save()
 

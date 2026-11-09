@@ -5,7 +5,7 @@ from pathlib import Path
 import threading
 
 from .budget import BudgetLedger, JEV_RESERVATION, coding_reservation
-from .classification import classify_with_budget
+from .classification import classification_summary, classify_with_budget
 from .codex_session import CodexSession
 from .credentials import validate_openai_key
 from .jev import JevClient, JevError
@@ -46,6 +46,7 @@ def check_codex(*, cwd: Path, openai_api_key: str, run_dir: Path,
 def run_prompt(prompt: str, *, cwd: Path, api_key: str, openai_api_key: str,
                run_dir: Path, budget_file: Path, timeout_seconds: float, approval_handler, emit,
                session_id: str | None = None, fallback_id: str = DEFAULT_FALLBACK,
+               experiment_id: str | None = None,
                cancel_event: threading.Event | None = None) -> dict:
     """Shared execution path for the terminal and future benchmark controller.
 
@@ -56,8 +57,9 @@ def run_prompt(prompt: str, *, cwd: Path, api_key: str, openai_api_key: str,
     cwd = validate_run(cwd, timeout_seconds)
     record = WorkflowRecord(run_dir, captured, cwd, timeout_seconds)
     client = state = None
+    session_started = False
     coding_entry = None
-    with BudgetLedger(budget_file) as ledger:
+    with BudgetLedger(budget_file, purpose=experiment_id or "interactive") as ledger:
         try:
             if cancel_event is not None and cancel_event.is_set():
                 raise ContractError("cancelled", "Stopped before provider dispatch.")
@@ -68,11 +70,15 @@ def run_prompt(prompt: str, *, cwd: Path, api_key: str, openai_api_key: str,
                 raise ContractError("invalid_fallback", "Choose a registry configuration as fallback.")
             ledger.check("jev", JEV_RESERVATION)
             ledger.check("openai", min(coding_reservation(c.model) for c in CONFIGURATIONS))
-            state = SessionState(run_dir, cwd, budget_file, session_id)
-            state.begin(record.path)
+            state = SessionState(run_dir, cwd, budget_file, session_id, purpose=ledger.purpose)
+            turn_limit = ledger.chat_turn_limit() if ledger.purpose == "interactive" else None
+            state.begin(record.path, turn_limit=turn_limit)
+            session_started = True
             record.update(session_id=state.id, session_path=str(state.path),
                 resumed=state.data["thread_id"] is not None, budget_file=str(ledger.path),
                 previous_configuration=state.data["last_configuration"])
+            record.update(chat_turn_limit=turn_limit, user_turn_index=len(state.data["turns"]) + 1,
+                budget_purpose=ledger.purpose)
             emit("session/opened", {"session_id": state.id, "resumed": record.data["resumed"]})
             client = CodexSession(cwd, timeout_seconds=timeout_seconds, openai_api_key=openai_api_key,
                                  approval_handler=approval_handler, emit=emit, record=record, cancel_event=cancel_event)
@@ -88,13 +94,16 @@ def run_prompt(prompt: str, *, cwd: Path, api_key: str, openai_api_key: str,
                 classified = classify_with_budget(prompt, api_key=api_key, ledger=ledger,
                                                    run_dir=record.path.parent / "jev")
                 record.update(classifier_record_path=classified["record_path"])
+                if (classified.get("prompt_sha256") != captured.prompt_sha256 or
+                        classified.get("taxonomy_version") != TAXONOMY_VERSION):
+                    raise ContractError("classification_mismatch", "The classification does not match this prompt and taxonomy.")
+                classification = classification_summary(classified)
+                record.update(classification=classification)
+                emit("classification/completed", classification)
                 if cancel_event is not None and cancel_event.is_set():
                     raise ContractError("cancelled", "Stopped after classification; no coding turn was submitted.")
                 if classified["status"] != "ok":
                     raise ContractError("classification_failed", "Jev did not return usable labels. Inspect its attempt record; no coding turn was started.")
-                if (classified.get("prompt_sha256") != captured.prompt_sha256 or
-                        classified.get("taxonomy_version") != TAXONOMY_VERSION):
-                    raise ContractError("classification_mismatch", "The classification does not match this prompt and taxonomy.")
                 route = select_route(Labels.from_dict(classified["labels"]), eligible, fallback_id)
                 reservation = coding_reservation(route.configuration.model)
                 coding_entry = "coding-" + record.path.parent.name
@@ -134,6 +143,6 @@ def run_prompt(prompt: str, *, cwd: Path, api_key: str, openai_api_key: str,
             record.update(budget=ledger.summary())
             uncertain = any(e["status"] in ("pending", "uncertain") for e in ledger.data["entries"].values())
             record.update(accounting_status="uncertain" if uncertain else "estimated", continuation_allowed=not uncertain)
-            if state is not None:
+            if state is not None and session_started:
                 state.finish(record.data, uncertain=uncertain)
         return {**record.data, "record_path": str(record.path)}

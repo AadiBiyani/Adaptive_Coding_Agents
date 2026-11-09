@@ -15,6 +15,8 @@ from uuid import uuid4
 
 from .budget import BudgetLedger, JEV_RESERVATION, coding_reservation, read_budget
 from .credentials import Credentials
+from .classifier_pilot import ClassifierPilot
+from .classification import classification_summary
 from .evaluations import EvaluationManager
 from .price_comparison import compare_record
 from .records import ContractError, PromptRecord
@@ -50,6 +52,9 @@ class LocalApp:
         self.active = None
         self.evaluations = EvaluationManager(project_root=project_root or Path(__file__).resolve().parents[3],
             output_root=self.run_dir.parent / "evaluations", scrub=self.scrub)
+        self.pilot = ClassifierPilot(dataset=self.evaluations.project_root / "data/classifier-pilot.json",
+            output_root=self.run_dir.parent / "classifier-evaluation", budget_file=self.budget_file,
+            api_key=self.credentials.typesafe, scrub=self.scrub)
 
     def scrub(self, value):
         if isinstance(value, str):
@@ -73,6 +78,7 @@ class LocalApp:
                     for p in ("jev", "openai")}
             return {"available": True, "caps_usd": result["caps_usd"], "remaining_usd": result["remaining_usd"],
                     "attempt_limits": result["attempt_limits"], "attempts_used": used,
+                    "chat_turn_limit": ledger.chat_turn_limit(), "experiments": result["experiment_usage"],
                     "uncertain": any(e["status"] in ("pending", "uncertain") for e in entries)}
         except (ContractError, OSError):
             return {"available": False, "error": "Initialize or inspect the existing budget from the terminal."}
@@ -87,9 +93,42 @@ class LocalApp:
 
     def chat(self, chat_id):
         chat = self.store.get(chat_id)
+        limit = self.budget().get("chat_turn_limit")
+        chat["turn_budget"] = {"limit": limit, "used": len(chat["turns"]),
+            "remaining": max(0, limit - len(chat["turns"])) if limit is not None else None}
+        for turn in chat["turns"]:
+            self._restore_turn_details(turn)
         with self.lock:
             chat["approval"] = deepcopy(self.active.get("request")) if self.active and self.active["chat_id"] == chat_id else None
         return chat
+
+    def _restore_turn_details(self, turn):
+        """Read older saved evidence without rerunning classification or coding."""
+        if turn.get("classification") is not None or not turn.get("record_path"):
+            return
+        try:
+            path = Path(turn["record_path"]).resolve()
+            if not path.is_relative_to(self.run_dir) or path.name != "workflow.json":
+                return
+            workflow = read_json(path)
+            prompt_hash = PromptRecord.capture(turn["prompt"]).prompt_sha256
+            if workflow.get("prompt_sha256") != prompt_hash:
+                return
+            classification = workflow.get("classification")
+            if classification is None:
+                attempt_path = Path(workflow["classifier_record_path"]).resolve()
+                if not attempt_path.is_relative_to(self.run_dir):
+                    return
+                attempt = read_json(attempt_path)
+                classification = classification_summary(attempt)
+            if classification.get("prompt_sha256") != prompt_hash:
+                return
+            turn["classification"] = self.scrub(classification)
+            turn.setdefault("previous_configuration", workflow.get("previous_configuration"))
+            turn.setdefault("configuration_changed", workflow.get("configuration_changed"))
+            turn.setdefault("accepted", workflow.get("accepted_thread_configuration"))
+        except (OSError, ValueError, TypeError, KeyError):
+            pass  # Missing historical probabilities remain unavailable, never invented.
 
     def submit(self, chat_id: str, prompt: str, submission_id: str):
         PromptRecord.capture(prompt)
@@ -98,11 +137,14 @@ class LocalApp:
             chat = self.store.get(chat_id)
             if any(t["id"] == submission_id for t in chat["turns"]):
                 return self.chat(chat_id)  # Duplicate HTTP submission never repeats paid work.
-            if self.active is not None or self.evaluations.active is not None:
+            if self.active is not None or self.evaluations.active is not None or self.pilot.active is not None:
                 raise ContractError("already_running", "Wait for the current response or test run to finish before sending another prompt.")
             if not self.credentials.typesafe or not self.credentials.openai:
                 raise ContractError("missing_credentials", "Add both API keys to your local .env file and restart the UI server.")
             with BudgetLedger(self.budget_file) as ledger:
+                limit = ledger.chat_turn_limit()
+                if limit is not None and len(chat["turns"]) >= limit:
+                    raise ContractError("chat_turn_limit", f"This chat has used its {limit} user turns. Start a new chat to continue within the shared spending budget.")
                 ledger.check("jev", JEV_RESERVATION)
                 ledger.check("openai", min(coding_reservation(c.model) for c in CONFIGURATIONS))
             cancel = threading.Event()
@@ -114,7 +156,8 @@ class LocalApp:
                     c["title"] = self.scrub(" ".join(prompt.split())[:64])
                 c["turns"].append({"id": submission_id, "prompt": self.scrub(prompt), "status": "running",
                     "stage": "Classifying your prompt", "started_at": now(), "messages": [],
-                    "activity": [], "files": [], "route": None, "error": None, "record_path": None})
+                    "activity": [], "files": [], "route": None, "classification": None,
+                    "error": None, "record_path": None})
             self.store.update(chat_id, begin)
             self.active = job
             threading.Thread(target=self._work, args=(job, chat, prompt), daemon=True).start()
@@ -126,6 +169,8 @@ class LocalApp:
             turn = c["turns"][-1]
             if method == "session/opened":
                 c["session_id"] = data["session_id"]
+            elif method == "classification/completed":
+                turn.update(classification=data, stage="Selecting model and reasoning effort" if data.get("status") == "ok" else "Classification stopped")
             elif method == "routing/selected":
                 turn.update(route=data, stage="Starting coding agent")
             elif method == "configuration/accepted":
@@ -144,7 +189,7 @@ class LocalApp:
                                    else item.get("text", message["text"]))[:MAX_TEXT]
             elif method in ("item/started", "item/commandExecution/outputDelta", "item/fileChange/outputDelta"):
                 self._activity(turn, method, data)
-        if method in ("session/opened", "routing/selected", "configuration/accepted", "item/agentMessage/delta",
+        if method in ("session/opened", "classification/completed", "routing/selected", "configuration/accepted", "item/agentMessage/delta",
                       "item/completed", "item/started", "item/commandExecution/outputDelta", "item/fileChange/outputDelta"):
             self.store.update(job["chat_id"], update)
 
@@ -226,7 +271,11 @@ class LocalApp:
                 turn = c["turns"][-1]
                 turn.update(status=result["status"], finished_at=now(), stage="Finished",
                     record_path=result.get("record_path"), error=(result.get("error") or {}).get("message"),
+                    previous_configuration=result.get("previous_configuration"),
+                    configuration_changed=result.get("configuration_changed"),
                     continuation_allowed=result.get("continuation_allowed", False))
+                if result.get("classification") is not None:
+                    turn["classification"] = result["classification"]
                 if result.get("accounting_status") == "uncertain":
                     turn["error"] = "Final spending is uncertain. Further calls are blocked until the records are reviewed."
             self.store.update(chat["id"], finish)
@@ -264,12 +313,22 @@ class LocalApp:
 
     def start_evaluation(self, data):
         with self.lock:
-            if self.active is not None:
-                raise ContractError("already_running", "Finish or stop the coding response before running tests.")
+            if self.active is not None or self.pilot.active is not None:
+                raise ContractError("already_running", "Finish or stop the coding response or classifier batch before running tests.")
             chat_id = data.get("chat_id")
             workspace = self.store.get(chat_id)["workspace"] if chat_id else data.get("workspace", str(self.workspace))
             return self.evaluations.start(kind=data["kind"], run_id=data["request_id"],
                 workspace=workspace, directory=data.get("directory", "."), chat_id=chat_id)
+
+    def pilot_action(self, action, data):
+        with self.lock:
+            if self.active is not None or self.evaluations.active is not None:
+                raise ContractError("already_running", "Finish the coding response or local tests before working with the classifier pilot.")
+            if action == "annotations":
+                return self.pilot.annotate(data)
+            if action == "preview":
+                return self.pilot.preview(split=data["split"], freeze_id=data.get("freeze_id"))
+            return self.pilot.start(data)
 
     def files(self, chat_id):
         workspace = Path(self.store.get(chat_id)["workspace"]).resolve()
@@ -366,7 +425,13 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == "/api/evaluations":
                 with app.evaluations.lock:
                     active_id = app.evaluations.active["id"] if app.evaluations.active else None
-                return self._send(200, {"suites": app.evaluations.catalog(), "runs": app.evaluations.list(), "active_id": active_id})
+                return self._send(200, {"suites": app.evaluations.catalog(), "runs": app.evaluations.list(), "active_id": active_id,
+                    "external_busy": app.pilot.active is not None})
+            if pieces == ["api", "classifier-pilot"]:
+                return self._send(200, {**app.pilot.state(query.get("split", ["development"])[0]),
+                    "budget": app.budget(), "other_busy": app.active is not None or app.evaluations.active is not None})
+            if len(pieces) == 4 and pieces[:3] == ["api", "classifier-pilot", "runs"]:
+                return self._send(200, app.pilot.get(pieces[3]))
             if len(pieces) == 3 and pieces[:2] == ["api", "evaluations"]:
                 return self._send(200, app.evaluations.get(pieces[2]))
             if len(pieces) in (3, 4) and pieces[:2] == ["api", "chats"]:
@@ -396,6 +461,10 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError
             app = self.server.app
             pieces = urlsplit(self.path).path.strip("/").split("/")
+            if len(pieces) == 3 and pieces[:2] == ["api", "classifier-pilot"] and pieces[2] in {"annotations", "preview", "runs"}:
+                return self._send(202 if pieces[2] == "runs" else 200, app.pilot_action(pieces[2], data))
+            if len(pieces) == 5 and pieces[:3] == ["api", "classifier-pilot", "runs"] and pieces[4] == "stop":
+                return self._send(200, app.pilot.stop(pieces[3]))
             if pieces == ["api", "evaluations"]:
                 return self._send(202, app.start_evaluation(data))
             if len(pieces) == 4 and pieces[:2] == ["api", "evaluations"] and pieces[3] == "stop":
@@ -403,7 +472,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, {"status": "stopping"})
             if pieces == ["api", "chats"]:
                 workspace = validate_run(Path(data.get("workspace") or app.workspace), app.timeout)
-                return self._send(201, app.store.create(workspace))
+                chat = app.store.create(workspace)
+                return self._send(201, app.chat(chat["id"]))
             if len(pieces) == 4 and pieces[:2] == ["api", "chats"]:
                 chat_id = identifier(pieces[2])
                 if pieces[3] == "messages":
@@ -441,4 +511,6 @@ def serve(*, port, workspace, run_dir, chat_dir, budget_file, credentials, timeo
             app.stop(app.active["chat_id"])
         if app.evaluations.active:
             app.evaluations.stop(app.evaluations.active["id"])
+        if app.pilot.active:
+            app.pilot.stop(app.pilot.active["id"])
         server.server_close()

@@ -33,6 +33,7 @@ class WorkflowRecord:
             "cwd": str(cwd),
             "timeout_seconds": timeout_seconds,
             "classifier_record_path": None,
+            "classification": None,
             "route": None,
             "thread_id": None,
             "turn_id": None,

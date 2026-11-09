@@ -122,7 +122,13 @@ def main(argv: list[str] | None = None) -> int:
     budget_commands = budget.add_subparsers(dest="budget_command", required=True)
     initialize = budget_commands.add_parser("init")
     status = budget_commands.add_parser("status")
-    for sub in (initialize, status, run, classify, evaluate, ui):
+    demo = budget_commands.add_parser("demo", help="Enable per-chat turn limits and shared dollars, preserving all existing charges; no calls.")
+    demo.add_argument("--turns-per-chat", type=int, default=10)
+    experiment = budget_commands.add_parser("experiment", help="Allocate request limits to a named experiment within the existing shared dollars; no calls.")
+    experiment.add_argument("--name", required=True)
+    experiment.add_argument("--max-jev-requests", type=int, required=True)
+    experiment.add_argument("--max-coding-turns", type=int, required=True)
+    for sub in (initialize, status, demo, experiment, run, classify, evaluate, ui):
         sub.add_argument("--budget-file", type=Path, default=DEFAULT_BUDGET_FILE)
     initialize.add_argument("--jev-usd", required=True)
     initialize.add_argument("--openai-usd", required=True)
@@ -146,6 +152,7 @@ def main(argv: list[str] | None = None) -> int:
     route.add_argument("--fallback", choices=[c.id for c in CONFIGURATIONS], default=DEFAULT_FALLBACK)
     run.add_argument("--fallback", choices=[c.id for c in CONFIGURATIONS], default=DEFAULT_FALLBACK)
     run.add_argument("--session", help="Resume the session_id printed by a previous invocation, using the same workspace and budget.")
+    run.add_argument("--experiment", help="Use a previously allocated experiment's request limits and the same shared dollars.")
     for sub in (run, check, ui):
         sub.add_argument("--timeout-seconds", type=float, default=180, help="Codex process timeout (up to 600s); not an exact billing cap.")
     args = parser.parse_args(argv)
@@ -163,9 +170,16 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "budget":
             with BudgetLedger(args.budget_file) as ledger:
-                details = (ledger.initialize(jev_usd=args.jev_usd, openai_usd=args.openai_usd,
-                    max_jev_requests=args.max_jev_requests, max_coding_turns=args.max_coding_turns)
-                    if args.budget_command == "init" else ledger.summary())
+                if args.budget_command == "init":
+                    details = ledger.initialize(jev_usd=args.jev_usd, openai_usd=args.openai_usd,
+                        max_jev_requests=args.max_jev_requests, max_coding_turns=args.max_coding_turns)
+                elif args.budget_command == "demo":
+                    details = ledger.enable_demo_controls(turns_per_chat=args.turns_per_chat)
+                elif args.budget_command == "experiment":
+                    details = ledger.allocate_experiment(args.name, max_jev_requests=args.max_jev_requests,
+                        max_coding_turns=args.max_coding_turns)
+                else:
+                    details = ledger.summary()
             result = {"status": "completed", **details}
         elif args.command == "credentials":
             keys = load_credentials(None if args.no_env else args.env_file)
@@ -202,7 +216,7 @@ def main(argv: list[str] | None = None) -> int:
                     terminal = Terminal(args.timeout_seconds)
                     result = run_prompt(prompt, cwd=args.cwd, api_key=keys.typesafe, openai_api_key=keys.openai,
                         run_dir=args.run_dir, budget_file=args.budget_file, session_id=args.session,
-                        fallback_id=args.fallback, timeout_seconds=args.timeout_seconds,
+                        fallback_id=args.fallback, timeout_seconds=args.timeout_seconds, experiment_id=args.experiment,
                         approval_handler=terminal.approve, emit=terminal.emit)
         failed = result["status"] not in ("preview", "completed", "ok")
         print(json.dumps(result, indent=2, ensure_ascii=True, allow_nan=False), file=sys.stderr if failed else sys.stdout)
