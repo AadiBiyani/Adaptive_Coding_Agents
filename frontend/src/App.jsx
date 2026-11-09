@@ -42,6 +42,9 @@ export default function App() {
   const followRef = useRef(true)
   const selectionRef = useRef(null)
   const running = !!chat?.turns.some(t => ["running", "stopping"].includes(t.status))
+  const chatTurnLimit = budget?.chat_turn_limit
+  const remaining = Number.isInteger(chatTurnLimit) ? Math.max(0, chatTurnLimit - (chat?.turns.length || 0)) : null
+  const chatExhausted = remaining === 0
   const empty = !chat?.turns.length
   const updateBudget = useCallback(value => setBudget(value), [])
 
@@ -105,7 +108,7 @@ export default function App() {
   }
   async function send(event) {
     event.preventDefault()
-    if (!draft.trim() || running || sendingRef.current || !boot?.credentials_ready) return
+    if (!draft.trim() || running || sendingRef.current || !boot?.credentials_ready || chatExhausted) return
     if (new TextEncoder().encode(draft).length > 16384) { setError("This prototype accepts up to 16 KB per prompt. Shorten the message and try again."); return }
     sendingRef.current = true; setSending(true); setError("")
     try {
@@ -127,16 +130,15 @@ export default function App() {
     try { await api(`/chats/${chat.id}/stop`, {}); setChat(await api(`/chats/${chat.id}`)) }
     catch (e) { setError(e.message) }
   }
-  const remaining = budget?.available ? Math.max(0, budget.attempt_limits.openai - budget.attempts_used.openai) : null
   const workspaceName = workspace.split("/").filter(Boolean).pop() || "Workspace"
   const sidebar = <div className="flex h-full flex-col bg-sidebar px-3 pb-4 pt-3">
     <div className="mb-5 flex items-center justify-between px-1"><Button variant="ghost" className="gap-2.5 px-2 text-base font-semibold tracking-tight" onClick={newChat}><Code2 className="size-5" />Adaptive</Button><IconButton label="Close sidebar" onClick={() => { setSidebarOpen(false); setMobileNav(false) }}><PanelLeft className="size-4.5" /></IconButton></div>
     <Button variant="ghost" className="h-10 justify-start gap-3 rounded-xl font-normal" onClick={newChat} disabled={running || sending}><SquarePen className="size-4.5" />New chat</Button>
     <Button variant="ghost" className={`mt-1 h-10 justify-start gap-3 rounded-xl font-normal ${tab === "spending" ? "bg-accent" : ""}`} onClick={() => { setTab("spending"); setMobileNav(false) }}><Wallet className="size-4.5" />Spending</Button>
-    <Button variant="ghost" className={`mt-1 h-10 justify-start gap-3 rounded-xl font-normal ${tab === "tests" ? "bg-accent" : ""}`} onClick={() => { setTab("tests"); setMobileNav(false) }}><FlaskConical className="size-4.5" />Tests & analysis</Button>
+    <Button variant="ghost" className={`mt-1 h-10 justify-start gap-3 rounded-xl font-normal ${tab === "tests" ? "bg-accent" : ""}`} onClick={() => { setTab("tests"); setMobileNav(false) }}><FlaskConical className="size-4.5" />Evaluation</Button>
     <p className="mb-2 mt-8 px-3 text-xs text-muted-foreground">Conversations</p>
     <ScrollArea className="min-h-0 flex-1"><div className="space-y-1">{chats.map(c => <Button key={c.id} variant="ghost" className={`h-10 w-full justify-start rounded-lg px-3 text-left text-sm font-normal ${chat?.id === c.id && tab === "chat" ? "bg-accent" : ""}`} onClick={() => selectChat(c.id)}><span className="truncate">{c.title}</span></Button>)}</div>{!chats.length && <p className="px-3 py-2 text-xs leading-5 text-muted-foreground">Your conversations will appear here.</p>}</ScrollArea>
-    <div className="mt-4 border-t border-border px-3 pt-4"><div className="flex items-center justify-between text-sm"><span>Local workspace</span><span className="size-1.5 rounded-full bg-foreground" /></div><p className="mt-1 text-xs text-muted-foreground">{remaining === null ? "Budget not initialized" : `${remaining} coding ${remaining === 1 ? "turn" : "turns"} remaining`}</p></div>
+    <div className="mt-4 border-t border-border px-3 pt-4"><div className="flex items-center justify-between text-sm"><span>Local workspace</span><span className="size-1.5 rounded-full bg-foreground" /></div><p className="mt-1 text-xs text-muted-foreground">{remaining === null ? "Shared pilot limits apply" : `${remaining} of ${chatTurnLimit} user turns left ${chat ? "in this chat" : "in a new chat"}`}</p><p className="mt-1 text-xs text-muted-foreground">Spending is shared across all chats.</p></div>
   </div>
 
   return <TooltipProvider delayDuration={250}><div className="flex h-dvh overflow-hidden bg-background">
@@ -149,11 +151,11 @@ export default function App() {
           {!sidebarOpen && <div className="hidden md:block"><IconButton label="Open sidebar" onClick={() => setSidebarOpen(true)}><PanelLeft className="size-5" /></IconButton></div>}
           <Button variant="ghost" className="min-w-0 gap-2 px-2 text-base font-medium" onClick={() => { setWorkspaceInput(workspace); setWorkspaceOpen(true) }}><span className="truncate">Adaptive</span><span className="text-muted-foreground">Auto</span><ChevronDown className="size-4 text-muted-foreground" /></Button>
         </div>
-        <Tabs className="hidden lg:block" value={tab} onValueChange={setTab}><TabsList className="h-9 rounded-full bg-secondary/70 p-1"><TabsTrigger value="chat" className="rounded-full px-4 text-xs">Chat</TabsTrigger><TabsTrigger value="tests" className="rounded-full px-4 text-xs">Tests</TabsTrigger><TabsTrigger value="spending" className="rounded-full px-4 text-xs">Spending</TabsTrigger></TabsList></Tabs>
+        <Tabs className="hidden lg:block" value={tab} onValueChange={setTab}><TabsList className="h-9 rounded-full bg-secondary/70 p-1"><TabsTrigger value="chat" className="rounded-full px-4 text-xs">Chat</TabsTrigger><TabsTrigger value="tests" className="rounded-full px-4 text-xs">Evaluation</TabsTrigger><TabsTrigger value="spending" className="rounded-full px-4 text-xs">Spending</TabsTrigger></TabsList></Tabs>
         <div className="flex items-center gap-1"><IconButton label="View workspace files" disabled={!chat} onClick={() => setFilesOpen(true)}><FolderOpen className="size-4.5" /></IconButton><IconButton label={dark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => setDark(v => !v)}>{dark ? <Sun className="size-4.5" /> : <Moon className="size-4.5" />}</IconButton></div>
       </header>
       {!boot && !error && <div className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" />Connecting to your workspace</div>}
-      {tab === "tests" && boot ? <div className="min-h-0 flex-1 overflow-y-auto"><Evaluations workspace={workspace} chat={chat} codingBusy={running} /></div> : tab === "spending" && boot ? <div className="min-h-0 flex-1 overflow-y-auto"><Spending configurations={boot.configurations} budget={budget} onBudget={updateBudget} /></div> : <div className={`flex min-h-0 flex-1 flex-col ${empty ? "justify-center pb-[12vh]" : ""}`}>
+      {tab === "tests" && boot ? <div className="min-h-0 flex-1 overflow-y-auto"><Evaluations codingBusy={running} onBudget={updateBudget} /></div> : tab === "spending" && boot ? <div className="min-h-0 flex-1 overflow-y-auto"><Spending configurations={boot.configurations} budget={budget} onBudget={updateBudget} /></div> : <div className={`flex min-h-0 flex-1 flex-col ${empty ? "justify-center pb-[12vh]" : ""}`}>
         {empty ? <div className="mx-auto w-full max-w-3xl px-6 pb-8 text-center"><h1 className="text-[28px] font-medium tracking-tight md:text-[32px]">What can I help you code?</h1><p className="mt-3 text-sm text-muted-foreground">Your prompt. The right configuration. One conversation.</p></div> : <div className="chat-scroll min-h-0 flex-1 overflow-y-auto" onScroll={e => { const el = e.currentTarget; followRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120 }}>
           <div className="mx-auto max-w-3xl px-5 pb-4 pt-8 md:px-6">{chat.turns.map(turn => <Turn key={turn.id} turn={turn} onFiles={() => setFilesOpen(true)} />)}
             {chat.approval && <Approval key={chat.approval.id} request={chat.approval} onAnswer={answer => api(`/chats/${chat.id}/approval`, answer)} />}
@@ -163,10 +165,11 @@ export default function App() {
         <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pb-3 md:px-6">
           {error && <div role="alert" className="mb-3 flex items-start gap-2 rounded-xl border border-destructive/25 px-4 py-3 text-sm text-destructive"><CircleAlert className="mt-0.5 size-4 shrink-0" /><span className="min-w-0 flex-1">{error}</span><Button variant="ghost" size="icon-xs" aria-label="Dismiss error" onClick={() => setError("")}><X className="size-3" /></Button></div>}
           {boot && !boot.credentials_ready && <p className="mb-3 text-center text-sm text-muted-foreground">Add both API keys to your local .env file, then restart the server.</p>}
+          {chatExhausted && <p role="status" className="mb-3 text-center text-sm text-muted-foreground">This chat has reached its {chatTurnLimit}-turn allowance. Start a new chat to continue within the shared spending budget.</p>}
           <form onSubmit={send} className="rounded-[28px] bg-secondary p-3 shadow-[0_2px_8px_0_#00000005] focus-within:ring-1 focus-within:ring-ring/25">
             <Textarea ref={textRef} value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(e) } }} placeholder="Ask a coding question or describe a change…" aria-label="Message your coding agent" rows={1} className="max-h-[200px] min-h-12 resize-none border-0 bg-transparent px-3 py-3 text-[15px] leading-6 shadow-none focus-visible:ring-0 dark:bg-transparent" disabled={!boot} />
             <div className="flex items-center justify-between gap-3 pl-1"><Button type="button" variant="ghost" size="sm" className="max-w-[75%] gap-2 rounded-full text-xs font-normal text-muted-foreground" disabled={running} onClick={() => { setWorkspaceInput(workspace); setWorkspaceOpen(true) }}><FolderOpen className="size-3.5" /><span className="truncate">{workspaceName}</span></Button>
-              {running ? <Button type="button" size="icon" className="rounded-full" onClick={stop} aria-label="Stop response"><Square className="size-3.5 fill-current" /></Button> : <Button type="submit" size="icon" className="rounded-full" disabled={!draft.trim() || sending || !boot?.credentials_ready} aria-label="Send message">{sending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowUp className="size-5" />}</Button>}
+              {running ? <Button type="button" size="icon" className="rounded-full" onClick={stop} aria-label="Stop response"><Square className="size-3.5 fill-current" /></Button> : <Button type="submit" size="icon" className="rounded-full" disabled={!draft.trim() || sending || !boot?.credentials_ready || chatExhausted} aria-label="Send message">{sending ? <LoaderCircle className="size-4 animate-spin" /> : <ArrowUp className="size-5" />}</Button>}
             </div>
           </form>
           <p className="mt-2.5 text-center text-[11px] leading-5 text-muted-foreground">Sending uses your API credits. Jev sees this prompt; Codex retains the conversation.</p>

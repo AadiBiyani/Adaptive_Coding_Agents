@@ -7,6 +7,28 @@ import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { api, modelName, money, shortDate } from "@/lib/api"
 
+export function SpendingLimits({ budget }) {
+  return <section aria-label="Chat, spending, and experiment controls">
+    <h2 className="font-medium">Spending limits</h2>
+    <p className="mt-1 text-sm text-muted-foreground">Dollar allowances are shared across chats and experiments. Admission estimates can differ from the pricing scenario above.</p>
+    {budget?.available ? <>
+      {budget.chat_turn_limit != null && <Table className="mt-4"><TableHeader><TableRow><TableHead>Control</TableHead><TableHead>When you start a new chat</TableHead></TableRow></TableHeader><TableBody>
+        <TableRow><TableCell>{budget.chat_turn_limit} user turns per chat</TableCell><TableCell>Fresh {budget.chat_turn_limit}-turn allowance</TableCell></TableRow>
+        <TableRow><TableCell>Shared dollar budget</TableCell><TableCell>Previous spending still counts</TableCell></TableRow>
+        <TableRow><TableCell>Experiment request limits</TableCell><TableCell>Remain tied to that experiment</TableCell></TableRow>
+      </TableBody></Table>}
+      <div className="mt-5 grid gap-5 sm:grid-cols-2">{["openai", "jev"].map(provider => <div key={provider}>
+        <div className="flex justify-between gap-3 text-sm"><span>{provider === "openai" ? "OpenAI" : "Jev"}</span><span>{money(budget.remaining_usd[provider])} remaining</span></div>
+        <p className="mt-2 text-xs text-muted-foreground">Shared cap: {money(budget.caps_usd[provider])} · {budget.attempts_used[provider]} {provider === "openai" ? "coding turns" : "classifications"} recorded</p>
+        {budget.attempt_limits[provider] != null && <p className="mt-1 text-xs text-muted-foreground">Legacy pilot limit: {budget.attempt_limits[provider]} requests</p>}
+      </div>)}</div>
+      {!!Object.keys(budget.experiments || {}).length && <div className="mt-6 space-y-3"><h3 className="text-sm font-medium">Experiment allocations</h3>{Object.entries(budget.experiments).map(([name, experiment]) => <div key={name} className="rounded-xl border border-border p-4"><p className="text-sm font-medium">{name === "classifier-pilot" ? "40-prompt classifier pilot" : name}</p><p className="mt-2 text-xs leading-5 text-muted-foreground">Jev: {experiment.attempts_used.jev} / {experiment.attempt_limits.jev} requests · OpenAI: {experiment.attempts_used.openai} / {experiment.attempt_limits.openai} coding turns</p></div>)}</div>}
+      <p className="mt-4 text-xs leading-5 text-muted-foreground">Each accepted user message counts as one chat turn, including failed or cancelled runs. A turn may contain several model and tool calls. The shared budget can stop a chat before its turn allowance is used.</p>
+    </> : <p className="mt-4 text-sm text-muted-foreground">{budget?.error}</p>}
+    {budget?.uncertain && <p className="mt-4 text-sm text-destructive">A request is pending or its final spending is uncertain. New calls may be blocked.</p>}
+  </section>
+}
+
 export function Spending({ configurations, budget, onBudget }) {
   const [baseline, setBaseline] = useState("sol-high")
   const [cache, setCache] = useState("30m")
@@ -73,9 +95,6 @@ export function Spending({ configurations, budget, onBudget }) {
     </>}
     {data?.runs.length > 0 && <div><h2 className="mb-3 text-sm font-medium">Recorded runs</h2><div className="divide-y divide-border">{data.runs.map(item => <Button key={item.id} variant="ghost" className={`h-auto w-full justify-between gap-3 rounded-none px-2 py-3 text-left font-normal ${selectedId === item.id ? "bg-secondary/70" : ""}`} onClick={() => setSelectedId(item.id)}><span><span className="block text-sm">{modelName(item.route.configuration.model)} / {item.route.configuration.effort}</span><span className="mt-1 block text-xs text-muted-foreground">{shortDate(item.started_at)} · {item.comparison.scope === "turn" ? "Turn tokens" : "Thread snapshot"}</span></span><span className="flex items-center gap-2 text-xs text-muted-foreground">{item.status}<ChevronRight className="size-4" /></span></Button>)}</div></div>}
     <Separator />
-    <div><h2 className="font-medium">Spending limits</h2><p className="mt-1 text-sm text-muted-foreground">The shared budget uses conservative admission estimates, which can differ from the pricing scenario above.</p>
-      {budget?.available ? <div className="mt-5 grid gap-5 sm:grid-cols-2">{["openai", "jev"].map(provider => <div key={provider}><div className="flex justify-between text-sm"><span>{provider === "openai" ? "OpenAI" : "Jev"}</span><span>{money(budget.remaining_usd[provider])} remaining</span></div><p className="mt-2 text-xs text-muted-foreground">{budget.attempts_used[provider]} of {budget.attempt_limits[provider]} {provider === "openai" ? "coding turns" : "classifications"} used</p></div>)}</div> : <p className="mt-4 text-sm text-muted-foreground">{budget?.error}</p>}
-      {budget?.uncertain && <p className="mt-4 text-sm text-destructive">A request is pending or its final spending is uncertain. New calls may be blocked.</p>}
-    </div>
+    <SpendingLimits budget={budget} />
   </div>
 }

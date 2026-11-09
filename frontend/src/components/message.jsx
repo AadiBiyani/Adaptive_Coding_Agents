@@ -5,6 +5,7 @@ import { Check, Copy, FileCode2, ChevronDown, Terminal, CornerDownRight } from "
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { modelName } from "@/lib/api"
+import { ClassificationPanel } from "@/components/classification-panel"
 
 export function CopyButton({ text, label = "Copy", className = "" }) {
   const [copied, setCopied] = useState(false)
@@ -56,14 +57,7 @@ export function Turn({ turn, onFiles }) {
         {config && <><span aria-hidden="true">/</span><span>{modelName(config.model)}</span><Badge variant="secondary" className="font-normal capitalize">{config.effort} effort</Badge></>}
         {turn.route?.fallback && <Badge variant="outline" className="font-normal">Fallback</Badge>}
       </div>
-      {turn.route && <details className="mb-4 text-xs text-muted-foreground">
-        <summary className="w-fit cursor-pointer select-none">Why this route</summary>
-        <div className="mt-2 space-y-1 border-l-2 border-border pl-3 leading-6">
-          <p>{turn.route.reason}</p>
-          <p>{Object.entries(turn.route.labels).map(([key, value]) => `${key.replaceAll("_", " ")}: ${value.replaceAll("_", " ")}`).join(" · ")}</p>
-          <p>Provisional policy; model quality and savings have not been established.</p>
-        </div>
-      </details>}
+      <ClassificationPanel turn={turn} />
       {turn.messages.map(message => <Markdown key={message.id} text={message.text} />)}
       {running && <p role="status" className="flex items-center gap-2 py-2 text-sm text-muted-foreground"><span className="size-2 rounded-full bg-foreground motion-safe:animate-pulse" />{turn.stage}</p>}
       {turn.error && <div role="alert" className="mt-4 rounded-lg border border-destructive/30 px-4 py-3 text-sm text-destructive">{turn.error}</div>}
