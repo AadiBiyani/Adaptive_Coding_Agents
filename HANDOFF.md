@@ -1,10 +1,10 @@
 # Development handoff
 
-Updated October 29, 2026. README remains the overall project summary with its full architecture diagram. Keep temporary review instructions here.
+Updated November 9, 2026. README remains the overall project summary with its full architecture diagram. Keep temporary review instructions here.
 
 ## Current owner instruction and pause point
 
-The owner requested a ChatGPT-style JavaScript/React/shadcn frontend, then a Tests tab and a clean frontend/backend layout. This slice is implemented and verified offline. Stop for the owner's manual review before additional product or research phases. Part 3's development-measured policy, SWE-bench execution, and OpenJev training have not started.
+The owner reviewed and committed the React frontend and frontend/backend layout as `8f33152`. Subsequent slices added the 40-prompt classifier pilot, removed software checks from the frontend, and added per-turn Jev probabilities and routing explanations. The latest request is to implement separate per-chat, shared-dollar, and experiment controls, then **stop development for Ryan's demo and feedback**. Those controls are now implemented and verified offline, with a 10-user-turn demo default. The existing local ledger has been migrated with all charges and dollar caps preserved. Manual UI review and live messages remain owner actions. Do not proceed to Parts 3–5 until the owner resumes after feedback; this supersedes the earlier authorization to continue. OpenJev training has not started.
 
 **Only the owner performs actions that consume model tokens or money.** Agents may write code and run offline checks. Do not send coding prompts, run a live classifier batch, or start training on the owner's behalf. No paid inference was executed during this UI/testing/cleanup slice.
 
@@ -18,7 +18,7 @@ The owner requested a ChatGPT-style JavaScript/React/shadcn frontend, then a Tes
 - Ignored `runs/`: coding records, budgets, native-session handles, browser transcripts, evaluation reports, and default workspace.
 - `docs/`: retained project, architecture, evaluation, training, and research plans.
 
-The source move verified every moved file's hash before and after. Removed the unused frontend class-name helper and its direct dependencies, the unused preview command, stale generated schema/build outputs, and Python bytecode caches. Kept the installed environments, useful dependency caches, research documents, private records, and the owner's ignored historical archive. Nothing was committed or pushed.
+The source move verified every moved file's hash before and after. Removed the unused frontend class-name helper and its direct dependencies, the unused preview command, stale generated schema/build outputs, and Python bytecode caches. Kept the installed environments, useful dependency caches, research documents, private records, and the owner's ignored historical archive. The owner subsequently committed that work; the classifier-pilot, classification-panel, and demo-control changes are now in separate backend and frontend commits.
 
 ## Implemented product
 
@@ -28,27 +28,33 @@ Jev receives only the exact newly submitted prompt plus fixed taxonomy definitio
 
 The adapter preserves explicit approvals, checks API-key authentication and ephemeral credential storage, verifies catalog and accepted settings, resumes sessions, and records requested/accepted/observed configurations separately. Cancellation closes the owned process without replay. Uncertain billing retains reservations and blocks continuation.
 
-The React interface includes arbitrary coding prompts, incremental Markdown responses, copyable code, conversation history, routing details, approvals, stop, workspace selection/file previews, and light/dark modes. Files are written to the selected workspace; the default is `runs/workspaces/default/`. Browser prompt/response text and visible tool output are privately saved in `runs/ui/chats/`. Old CLI metadata cannot reconstruct response text.
+The React interface includes arbitrary coding prompts, incremental Markdown responses, copyable code, conversation history, approvals, stop, workspace selection/file previews, and light/dark modes. Every turn now shows a dedicated Jev panel with reported option probabilities for all three category fields, selected labels, the policy reason, selected model/effort, accepted settings when available, and a configuration change from the previous turn. Provider confidence is separate from option probabilities; neither is a coding-success/model-selection probability. The policy currently uses selected labels, not confidence thresholds. The mapping remains unvalidated.
+
+The shared workflow emits `classification/completed` and persists a prompt-free `prompt-classification-view-1` summary in each workflow record; the UI also saves it in the corresponding chat turn. Existing browser turns recover missing summaries from matching, path-scoped local records without calls or rewriting history. Missing scores remain unavailable. These shared records are ready for later multi-turn benchmark analysis; no benchmark controller has been implemented. Files are written to the selected workspace; the default is `runs/workspaces/default/`. Browser prompt/response text and visible tool output are privately saved in `runs/ui/chats/`. Old CLI metadata cannot reconstruct response text.
 
 Spending reprices observed input/cache/output buckets for a selected fixed configuration, defaulting to Sol/high from the registry. It never runs that baseline. The routed side includes Jev's estimate. Dated rates and assumed cache lifetime are explicit, reasoning is not counted twice, and effort has no invented multiplier. These are pricing scenarios, not invoices, measured savings, or predictions of another model's token use. Resumed thread snapshots are labeled and never summed across runs.
 
-## Tests & analysis
+The Spending control table separates **10 user turns per chat**, **shared cumulative provider dollar caps**, and **experiment request quotas**. A new chat/session gets a fresh turn allowance; reopening or resuming keeps the count. Accepted failed/cancelled runs count, while duplicate submission IDs cannot replay or consume another turn. Internal model/tool calls are not extra user turns. The backend enforces the limits in both browser and terminal. Money and experiment usage never reset on a new chat. Named experiment allocations are supported by `budget experiment` and `run --experiment`; this is accounting support, not a benchmark runner, and no additional experiment has been allocated.
 
-`evaluations.py` manages named local adapters; `evaluation_worker.py` produces structured unittest results in a separate process. The React Tests tab supports:
+## Evaluation and software checks
 
-- **Project checks:** the local Python suite for classifier contracts, routing, accounting, sessions, UI, and evaluation jobs.
-- **Frontend checks:** real React rendering checks without a browser or model call.
-- **Workspace tests:** trusted Python `unittest` files matching `test*.py` in the selected coding folder or a relative test subdirectory.
+Software-check selection, Run/Stop controls, test history, and local-test results have been removed from the frontend at the owner's request. Use the terminal commands below for Python regression checks and React rendering checks. Existing backend local evaluation adapters, private reports, and developer API tests remain available; they are no longer a product UI. Their trusted-workspace runner is not an untrusted-code sandbox. Do not run downloaded benchmark repositories on the host.
 
-Only a user-triggered Run starts a job. Duplicate IDs cannot replay it, one job runs at a time, and the browser prevents overlapping coding/test work through backend checks. Reports include progress, individual outcomes, bounded output, source fingerprints before/after, command/environment metadata, elapsed time, cancellation/timeouts, history, and JSON export. Empty suites and all-skipped suites are not reported as passes. Reports persist privately in `runs/evaluations/<id>/run.json`; restart marks unfinished jobs interrupted without replay.
+The renamed **Evaluation** page explains the classifier pilot and provides its review/results flow. It is a foundation for later SWE-bench task/strategy analysis, not an implementation of the isolated evaluator.
 
-The runner strips inherited credentials. Workspace mode blocks ordinary Python network and child-process calls, but is **not an untrusted-code sandbox**. Do not run downloaded benchmark repositories on the host. Pytest-only suites or separate project environments are not supported by this slice. No model request is initiated by these adapters, and local results are not SWE-bench scores or independent claims that an agent solved a task.
+**40-prompt Jev pilot:** the Evaluation page exposes the existing 20-development/20-held-out authored diagnostic dataset. `classifier_pilot.py` manages review and confirmed browser jobs; `classifier_evaluation.py` remains the shared CLI/browser evaluator. The frontend shows one prompt with the fixed category definitions, accepts only owner-reviewed labels, and never fills in gold labels from model predictions. Existing dataset content remains unchanged by this implementation; all 40 labels were pending at the last inspection. These prompts are not coding exercises sent to GPT and are not fine-tuning data automatically.
 
-The UI is a foundation for later SWE-bench task/strategy analysis, not an implementation of the isolated evaluator. The separately budgeted classifier pilot remains a terminal operation after human annotation.
+The owner previews one split's costs, then explicitly confirms. The confirmation shows Jev requests and zero OpenAI calls: this cohort evaluates classification, not executable coding tasks. The current conservative admission estimate is $0.02 for 20 prompts ($0.04 across both splits), not a guaranteed bill. The existing shared caps and attempt limits are rechecked without increasing/resetting them. Short-lived confirmations bind the exact split, reviewed labels, questions, requested classifier, and development freeze; changed inputs require a new preview. Duplicate submissions cannot repeat a batch. Cancellation lets an in-flight request finish accounting and stops before the next prompt. Coding and local checks cannot overlap a classifier batch.
+
+Held-out execution requires a matching completed development report; annotations become read-only once predictions exist for their split. Live progress, accuracy/macro-F1, exact match, individual label comparisons, failure counts, cost estimates, history, and exports appear in the UI. Reports retain full confusion matrices, usage, latency, hashes, and budget records under ignored `runs/classifier-evaluation/`. No classifier batch was executed during implementation. These labels/results cannot establish a measured model/effort routing policy; Part 3 needs separate executable configuration outcomes.
 
 ## Verification and measured evidence
 
-All **118 offline Python tests passed** after the reorganization. The updated HTTP integration check also passed, exercising authenticated test submission, progress/results, duplicate protection, and an unchanged budget with an authored workspace fixture. React rendering and the production frontend build pass. Source distribution and wheel build under `.cache/build/`; inspection includes the UI/evaluation modules and excludes secrets, tests, run data, and node_modules.
+Earlier verification passed all **142 offline Python checks**, including prompt-only classification, per-turn records, historical evidence recovery, pilot confirmation/cancellation, and the localhost API. New checks cover migration with unchanged charges/caps, per-chat reset and persistence, duplicate submissions, shared-dollar exhaustion, independent experiment quotas, and CLI session enforcement. That suite ran with loopback permission and mocked inference only. React rendering checks verify the probability panel, unavailable/error states, routing changes, pilot confirmation, the new control table, and the absence of software checks. The production frontend build passes with the existing bundle-size warning. No visual browser automation was available.
+
+Pre-commit verification on November 9 passed 141 of 142 Python checks; the HTTP check could not bind localhost because of the session's sandbox restriction (`PermissionError`). React rendering and the production frontend build passed again. No model calls were made. Rerun the full Python command below from the owner's terminal to verify the localhost check.
+
+Before this slice, source distribution and wheel builds passed under `.cache/build/`; their inspection included UI/evaluation modules and excluded secrets, tests, run data, and node_modules. The following earlier localhost adapter runs remain historical verification of the previous 118-check suite:
 
 Both project and frontend adapters were then run through the actual localhost API. Project checks passed all 118 tests; the frontend rendering check passed. Their saved reports are:
 
@@ -63,7 +69,9 @@ The second owner-run workflow, `runs/coding/3eea61b1-5eff-45e7-9be3-de1b9e81d509
 
 ## Spending and remaining work
 
-The reviewed shared allocation is $0.05 Jev and $2 OpenAI, with 43 Jev requests and three coding turns. At the latest check two Jev requests and two coding turns were used; **one coding turn remains**. The recorded remaining admission amounts are $0.049922258 Jev and $1.97738875 OpenAI. They are not actual account balances or bills. Do not reset/increase the ledger or treat available credits as authorization. Cumulative cloud/non-OpenAI cash spending must remain below $50 unless separately reviewed.
+The reviewed shared allocation remains **$0.05 Jev and $2 OpenAI**. On October 30 the owner's requested adjustment migrated `runs/part-2-budget.json` to `admission-budget-2`: each chat/session has 10 user turns, and `classifier-pilot` has 40 Jev requests plus zero coding turns across both splits. The former global 43-request/three-turn ceilings are replaced; neither dollar cap increased. All four existing entries (two Jev and two coding attempts), their charges, and remaining amounts were verified unchanged. The private backup is `runs/part-2-budget.json.before-chat-controls.json`.
+
+The recorded remaining admission amounts are **$0.049922258 Jev and $1.97738875 OpenAI**; the classifier experiment has used zero of its 40 requests. These are ledger estimates, not actual account balances or bills. Shared caps, reservations, and uncertainty can stop work before a chat uses all ten turns. Opening a new chat never refills money or experiment requests. The migration made no provider calls. Do not reset/increase the ledger or treat available credits as authorization. Cumulative cloud/non-OpenAI cash spending must remain below $50 unless separately reviewed.
 
 The classifier pilot has 20 development and 20 held-out authored prompts under ignored `data/classifier-pilot.json`. Labels remain unreviewed; no accuracy batch has run. `GROUPS` is split/group metadata, not a lookup from problems to executable tests. Human annotations must use only the current prompt. Held-out evaluation requires the frozen development report; no predictions may become their own gold labels.
 
@@ -80,9 +88,11 @@ npm run build --prefix frontend
 .venv/bin/adaptive-code ui
 ```
 
-Open `http://127.0.0.1:8765`. The app was restarted after the folder move. Opening it and using Tests or Spending requires no inference. In Tests, run Project checks, then Frontend checks. To inspect generated-code tests, choose Workspace tests; use `.` for a root `test_cart.py` or `tests` for a subfolder. Inspect failures, history, and exported details.
+Restart the backend in the owner's terminal after rebuilding, then open `http://127.0.0.1:8765`. The agent previously stopped its background server at the owner's request; do not assume any current listener belongs to the agent. Opening the app, viewing Spending, reviewing saved classifications, and annotating labels require no inference. Software checks now run from the terminal. Inspect an existing saved chat to see its Jev probabilities and policy explanation without spending.
 
-For coding review, only the owner sends a prompt. Select a workspace, inspect its route/response/files, and use the remaining coding turn deliberately; UI and CLI share the same cap. A new conversation starts a new Codex session; a follow-up in the existing conversation resumes it.
+For the classifier pilot, open **Evaluation** and read its explanation. Review and save the three labels for each development prompt from its text alone. After all 20 are reviewed, choose **Review cost & run Jev tests**. Inspect both provider counts and Cancel to test the no-spending path. Only the owner should choose **Confirm & spend Jev tokens**. Inspect the completed development report; review the held-out labels independently and choose that development report as the freeze before confirming the second batch. Do not use predictions as gold labels or change the classifier after seeing held-out outcomes. Shared-budget exhaustion remains a stop, not permission for an increase.
+
+For the free controls check, open Spending and inspect its three-row table and unchanged shared dollar caps. Open New chat and verify 10 turns remain; reopen an existing chat and verify its existing turns count. Neither action changes the dollar or experiment totals. Only the owner sends live prompts. A submitted message consumes one chat turn; follow-ups resume the existing Codex session. The offline suite already checks cap exhaustion, so there is no need to pay for ten prompts just to verify the limit.
 
 Free local verification, when the ignored tests are present:
 
@@ -95,4 +105,4 @@ node tests/ui-render.mjs
 
 The HTTP tests need permission to bind loopback ports. `tests/smoke_ui_evaluations.py` checks both offline adapters through the running UI and verifies an unchanged API budget. It does not submit chat prompts or classifier requests.
 
-The owner committed Part 1 as `fdd6830`; subsequent work remains uncommitted. Keep stakeholder evidence, personal contacts, course submissions, raw conversations, secrets, datasets, and generated reports out of Git. The ignored archive `.local-archive/jev-first-20261025T193910Z/` stays preserved. Stop here for review.
+The owner committed Part 1 as `fdd6830` and the chat/test UI plus reorganization as `8f33152`. At the owner's request, the subsequent backend changes are committed as `33a6e0e` and the frontend changes as `2bc4eac`, with documentation in a separate commit. Pushing to main remains the owner's action. Keep stakeholder evidence, personal contacts, course submissions, raw conversations, secrets, datasets, and generated reports out of Git. The ignored archive `.local-archive/jev-first-20261025T193910Z/` stays preserved. **Development stops here for Ryan's review and feedback.** Resume only when the owner requests it. No paid calls or new research results were produced during this slice.

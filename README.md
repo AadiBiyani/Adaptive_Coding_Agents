@@ -92,9 +92,9 @@ Results will report task success alongside total cost, tokens, latency, failures
 | Hosted classification | Direct TypeSafe System One client pinned to `jev-1.14.0`, response validation, private attempt records, and one recorded real response. |
 | Terminal and Codex integration | Python CLI with explicit routing, streaming, approvals, resume support, and pinned official SDK/runtime `0.163.0`. One owner-run routed repair passed three independently rerun, unchanged tests. Live session continuity and fallback remain to be verified. |
 | Credentials and spending | Ignored local credentials, persistent reservations and attempt limits, uncertain-usage handling, and provisional fallback. |
-| Local chat app | JavaScript/React, Vite, Tailwind, and shadcn/ui: arbitrary prompts, streamed responses, saved chats, approvals, workspace files, and offline token-price comparisons. Uses the same Python workflow as the terminal. |
-| Tests & analysis | Local project, frontend, and workspace checks with progress, per-test results, logs, cancellation, run history, source fingerprints, and report export. These are software checks, not SWE-bench scores. |
-| Classifier evaluation | Reviewed-label checks, grouped split validation, and metrics runner. Authored pilot prompts await human annotation; no accuracy result is established. |
+| Local chat app | JavaScript/React, Vite, Tailwind, and shadcn/ui: arbitrary prompts, streamed responses, saved chats, per-turn Jev probabilities and routing explanations, approvals, workspace files, and offline token-price comparisons. Uses the same Python workflow as the terminal. |
+| Evaluation interface | Classifier pilot with a plain-language explanation, reviewed labels, explicit spending confirmation, results, and exports. SWE-bench and controlled multi-turn results remain planned. Software regression checks run from the terminal. |
+| Classifier evaluation | Browser label review, provider-specific spending confirmation, and the shared budgeted metrics runner for 20 development + 20 held-out prompts. No accuracy result is established until the owner reviews labels and runs the pilot. |
 | Measured routing policy | Planned; the current mapping and fallback have no measured reliability advantage. |
 | OpenJev adaptation | Untuned comparison and cloud fine-tuning remain planned. |
 | Coding benchmarks | SWE-bench, controlled multi-turn evaluation, and strategy comparisons remain planned. |
@@ -147,9 +147,19 @@ npm run build --prefix frontend
 .venv/bin/adaptive-code ui
 ```
 
-Open **http://127.0.0.1:8765**. Starting the server, opening chats, and viewing spending make no model calls. Sending a message invokes Jev and the routed coding agent. The existing budget and attempt limits apply; the UI does not reset them.
+Open **http://127.0.0.1:8765**. Starting the server, opening chats, and viewing spending make no model calls. Sending a message invokes Jev and the routed coding agent. The sidebar shows the current chat's remaining user turns. The **Spending** control table separates three limits:
 
-Type any coding prompt. Enter sends; Shift+Enter inserts a newline. Responses render Markdown and copyable code blocks. **Why this route** shows Jev's labels and the selected model/effort. Tool approvals appear in the conversation. **Stop** requests cancellation; final charges can remain uncertain and block further calls.
+| Control | Effect of a new chat |
+| --- | --- |
+| User turns per chat (default 10) | Starts a fresh allowance; reopening an existing chat preserves its count. |
+| Shared dollar caps | All prior chat and experiment spending still counts. |
+| Experiment request quotas | Stay with the experiment; the classifier pilot has 40 Jev requests and zero coding turns. |
+
+An accepted message counts as one user turn, including failed or cancelled runs. Internal model/tool calls are not additional user turns. Shared spending can stop a chat before its turn allowance runs out. The terminal enforces the same allowance when resuming a session. Existing legacy ledgers retain their old limits until the explicit, no-inference `adaptive-code budget demo --turns-per-chat 10` migration; it backs up the ledger and preserves all charges and dollar caps. Current local allocation and migration status are in [HANDOFF](HANDOFF.md#spending-and-remaining-work).
+
+Type any coding prompt. Enter sends; Shift+Enter inserts a newline. Responses render Markdown and copyable code blocks. Every turn has a **Jev classification** panel showing all reported option probabilities for task type, cause evidence, and change scope, with the selected labels highlighted. **Why this model & effort** displays the routing policy's reason and selected configuration, plus the accepted configuration and a change from the previous turn when recorded. Jev supplies categories; the separate policy selects the model and effort.
+
+Option probabilities and the provider's separate confidence values are preserved as reported; neither is a coding-success probability. Missing scores remain unavailable. Existing browser chats can recover classifier evidence from their matching local records without model calls. New workflow and chat records retain the same per-turn summary for later multi-turn benchmark analysis. Tool approvals appear in the conversation. **Stop** requests cancellation; final charges can remain uncertain and block further calls.
 
 The default code folder is `runs/workspaces/default/`. Select an existing folder using the workspace button, or launch with `--cwd /absolute/path/to/project`. The **Files** button previews files there. Answers and code snippets appear in chat; files are created only when the agent writes them. Follow-ups in a conversation resume its Codex session while Jev sees only the new prompt.
 
@@ -157,20 +167,23 @@ The **Spending** tab reprices the routed run's reported tokens for a selectable 
 
 For frontend development, keep the backend running and use `npm run dev --prefix frontend` in another terminal. Vite serves http://127.0.0.1:5173 with a local API proxy. Rebuild before using the single-server production frontend at port 8765.
 
-### Tests & analysis
+### Evaluation
 
-Open **Tests** in the header or **Tests & analysis** in the sidebar. Choose **Project checks** for the local Python regression suite, **Frontend checks** for React rendering checks, or **Workspace tests** for Python tests in the selected coding folder. Press **Run tests** to see progress, pass/fail details, output, and saved history. No model request is made and the API budget is unchanged.
+Open **Evaluation** in the header or sidebar. The page explains the **40-prompt Jev pilot**: you supply independently reviewed category labels, Jev predicts labels without seeing your answers, and the report measures agreement. This is a classifier diagnostic, not fine-tuning or a set of executable coding problems.
 
-Workspace tests use Python's `unittest` discovery with `test*.py`. Keep the test-folder field as `.` for files such as `test_cart.py` in the workspace root, or enter `tests` for a test subdirectory. Use trusted local code: this runner disables ordinary Python network/child-process calls and removes inherited API credentials, but it is not an untrusted-code sandbox. The current runner does not support pytest-only suites or repositories requiring a different environment.
+Review the authored classification examples: 20 development and 20 held-out prompts, with related pairs kept in one split. Read each prompt on its own, select its three labels, enter a reviewer nickname, and confirm your review. No labels are filled in automatically. This uses the ignored `data/classifier-pilot.json`; if it is missing, the UI shows the offline preparation command. It never overwrites an existing dataset.
 
-Each run records its source fingerprint, Python/platform information, exact command, elapsed time, outcome, and available individual checks. Empty suites, errors, timeouts, skipped suites, and cancellation are explicit outcomes. **Export report** downloads the record for inspection. The saved local copy is under ignored `runs/evaluations/`. Output and detail previews have bounded sizes. Files changing during a run are flagged.
+Once the selected split is reviewed, **Review cost & run Jev tests** opens a confirmation showing the request count, conservative admission estimate, and existing budget allowance. The classifier pilot uses **Jev only; OpenAI calls are zero**. Nothing is dispatched until the owner confirms. A confirmation expires after five minutes and cannot replay a batch. Requests stop on errors or unknown spending; cancellation finishes accounting for the current request before stopping. Do not reset the budget to repeat an experiment.
 
-This is the interface foundation for SWE-bench analysis. The later benchmark adapter must supply pinned tasks, containerized execution, independently graded patches, and matched strategy comparisons. The current local results and Spending estimates do not establish routing quality or benchmark savings. The separately budgeted Jev classifier pilot remains available through the terminal after human annotation; this tab does not start classifier batches.
+Run development first, then select that completed report as the freeze for held-out evaluation. The backend verifies unchanged inputs, classifier questions/model, and reviewed development labels. Each split's annotations become read-only after predictions exist. Results include per-field accuracy/macro-F1, exact match, failures, predictions versus reviewed labels, cost estimates, history, and report export. Full usage, latency, confusion matrices, and fingerprints are saved under ignored `runs/classifier-evaluation/`. The CLI uses the same evaluator.
 
-Where the local test suite is present:
+This is the interface foundation for SWE-bench analysis. The later benchmark adapter must supply pinned tasks, containerized execution, independently graded patches, and matched strategy comparisons. The 40 authored prompts test classification; they are not executable coding tasks or SWE-bench instances. Neither their accuracy nor the Spending estimates establish routing quality or benchmark savings.
+
+Software checks are intentionally absent from the frontend. Where the ignored local test suite is present, run them in the terminal:
 
 ```sh
 .venv/bin/python -m unittest discover -s tests -v
+node tests/ui-render.mjs
 ```
 
 Tests intercept provider HTTP, exercise the SDK against a local protocol test server, and check the UI backend with simulated workflows. The UI checks need the frontend build and permission to bind a temporary loopback port. `node tests/ui-render.mjs` checks React rendering without model calls. The owner keeps `tests/` ignored, so it is not included in a fresh clone.

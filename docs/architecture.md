@@ -23,7 +23,7 @@ The classifier input excludes history, repository metadata/content, tool results
 | Component | Language and responsibility |
 | --- | --- |
 | Terminal client | Python: prompt queue, routing display, streamed output, approvals, cancel/resume. |
-| Local browser client | JavaScript/React/shadcn in `frontend/`: chat, file previews, token-price comparisons, and local test results. Python APIs and adapters live in `backend/src/`; both product surfaces share the same coding path. |
+| Local browser client | JavaScript/React/shadcn in `frontend/`: chat with per-turn classification probabilities and routing explanations, file previews, token-price comparisons, and classifier evaluation. Software checks run from the terminal. Python APIs and adapters live in `backend/src/`; both product surfaces share the same coding path. |
 | Prompt encoder | Python: current prompt plus fixed category instructions; explicit input-size handling and no dynamic context enrichment. |
 | Configuration registry | Shared validated data: models, efforts, execution limits, access state, and dated rates. |
 | Classifier clients | Python: hosted Jev and OpenJev endpoints returning typed task categories/signals under one taxonomy contract. |
