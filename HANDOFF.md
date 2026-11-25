@@ -1,8 +1,16 @@
 # Development handoff
 
-Updated November 9, 2026. README remains the overall project summary with its full architecture diagram. Keep temporary review instructions here.
+Updated November 25, 2026. README remains the overall project summary with its full architecture diagram. Keep temporary review instructions here.
 
-## Current owner instruction and pause point
+## Local OpenJev work resumed November 25
+
+The owner resumed local Flash 9B classifier work on a Windows RTX 3060 with 12 GiB VRAM. The owner authorized public downloads and a synthetic GPU feasibility check and will operate the research fine-tuning run personally. A formal stakeholder prototype or rubric review remains unverified. Ask before any paid provider or cloud run.
+
+The model, tokenizer and choice helper are pinned to `openjev/OpenJev-Flash-9B` revision `b77b0fff67c77a76c16d4da50a66d2fdbc124fae`. The offline audit found 12 active training prompts across six groups, 20 development prompts and 20 held-out prompts. All annotations await owner review. The original pilot preparation script reproduced the pilot IDs and splits. Private data and review sheets live under ignored `data/`.
+
+The owner-operated stages are in `training/openjev/experiment.py`. The synthetic-only step and fresh-process reload are in `training/openjev/smoke.py`. At the source checkpoint, the public snapshot and CUDA package installation are incomplete. GPU fit, throughput, reload agreement, and classifier accuracy remain unmeasured. See the [RTX 3060 plan](OpenJev_3060_Training_Plan.md).
+
+## November 9 demo checkpoint (historical)
 
 The owner reviewed and committed the React frontend and frontend/backend layout as `8f33152`. Subsequent slices added the 40-prompt classifier pilot, removed software checks from the frontend, and added per-turn Jev probabilities and routing explanations. The latest request is to implement separate per-chat, shared-dollar, and experiment controls, then **stop development for Ryan's demo and feedback**. Those controls are now implemented and verified offline, with a 10-user-turn demo default. The existing local ledger has been migrated with all charges and dollar caps preserved. Manual UI review and live messages remain owner actions. Do not proceed to Parts 3–5 until the owner resumes after feedback; this supersedes the earlier authorization to continue. OpenJev training has not started.
 

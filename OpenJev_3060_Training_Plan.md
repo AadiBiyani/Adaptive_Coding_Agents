@@ -1,0 +1,57 @@
+# OpenJev fine-tuning on the RTX 3060
+
+**Target:** finish the GPU runs and verify a portable copy by Thursday, November 26, 2026. Friday, November 27 is the recovery window. All times are Pacific.
+
+**Experiment:** Does supervised adapter tuning of OpenJev Flash 9B improve classification of Python debugging prompts? Compare the released Flash 9B checkpoint against that exact checkpoint with your adapter enabled. Later, use those decisions to test whether routing improves executable task success or cost per resolved issue.
+
+## What is already implemented
+
+Reviewed public main at commit `4c391fd`. The Python router classifies each new user message and maps three labels to four configurations (two GPT models × low/high reasoning effort). Codex owns conversation history and tools. Only the current user prompt and fixed category questions go to the classifier. Hosted TypeSafe Jev, the CLI, the React UI, and a label-review pilot already exist. The public handoff records the pilot labels as pending. Check privately saved work on the PC before recreating it.
+
+| Repository source | How to use it |
+|---|---|
+| [taxonomy.py](https://github.com/AadiBiyani/Adaptive_Coding_Agents/blob/4c391fd/backend/src/adaptive_coding_agents/taxonomy.py) | Import the three questions, their option order, and definitions. |
+| [routing.py](https://github.com/AadiBiyani/Adaptive_Coding_Agents/blob/4c391fd/backend/src/adaptive_coding_agents/routing.py) | Feed predictions to the existing policy. Compare tuned/base under the same policy version. |
+| [classifier_evaluation.py](https://github.com/AadiBiyani/Adaptive_Coding_Agents/blob/4c391fd/backend/src/adaptive_coding_agents/classifier_evaluation.py) | Reuse metric definitions and grouping conventions. The pilot loader accepts up to 40 dev/test examples. Add a separate training-data loader. |
+| [training plan](https://github.com/AadiBiyani/Adaptive_Coding_Agents/blob/4c391fd/docs/training-plan.md) and [handoff](https://github.com/AadiBiyani/Adaptive_Coding_Agents/blob/4c391fd/HANDOFF.md) | Preserve the option-scoring objective and data split rules. The original target was 27B. Training code and a tuned checkpoint are outstanding. |
+
+## Tuesday, November 24 — settle hardware feasibility and start labels
+
+1. In the PC checkout, run `git status --short --branch`, `git rev-parse HEAD`, and `nvidia-smi --query-gpu=name,memory.total,memory.free,driver_version --format=csv`. Also record RAM, free disk and whether training will run under native Linux, WSL2 or Windows. Verify CUDA from PyTorch inside the actual training environment. Check for the ignored pilot data and local labels. A fresh clone needs the existing offline pilot preparation step.
+2. Target **openjev/OpenJev-Flash-9B**. Resolve and pin the exact model, tokenizer and helper revision. Its upstream BF16 files are about 19 GB, so allow additional disk for downloads, environments, caches and checkpoints. Use the BF16 source with 4-bit NF4 loading and PEFT LoRA in a dedicated training environment. Discover text-layer target names from the model. Validate the chosen compute dtype and kernels on this machine. The upstream FP8 serving recipe targets a different GPU.
+3. Start with microbatch 1, gradient checkpointing, cache disabled, LoRA rank 8 and a short sequence. Measure token lengths **after** applying the full template. Pick a length that preserves the task instructions, all choices and the answer position. Record overlength examples and their handling. Run one batch near the actual planned length. For an 8 GB or smaller card, make this feasibility test the first priority.
+4. Match Flash's choice serialization, option-token IDs and first-answer position. For each field, compute cross-entropy over only its allowed choice logits. Use fixed choice order and the same inference calibration for both variants. Verify scores for the same prompt before and after save/reload within a recorded tolerance. Smoke-test on training examples only: finite loss, finite gradients, at least one changed adapter parameter, frozen base, and a small batch the model can learn.
+5. Time 10–20 representative training microbatches after warm-up and record peak allocated **and** reserved GPU memory. Estimate the run from timed examples per second, 3 field decisions per prompt, epochs, dev evaluations and checkpoint time. If you see OOM, try one shorter valid length or narrower text adapter configuration. If it still fails or the measured ETA misses Thursday, make the hardware decision by Wednesday morning. The fallback that preserves the experiment is the same 9B checkpoint and training code on a larger GPU. Price the entire job first against the repo's under-$50 cumulative cloud ceiling and obtain owner approval before renting. A smaller unrelated checkpoint would answer a different question.
+
+**Meanwhile, Aadi labels data.** Start with 12 new training prompts across at least six unrelated issues for software checks. Aim for 80–120 independently reviewed training prompts for the main pilot. The existing 20 development and 20 held-out prompts stay in their assigned splits. These counts are planning targets. Record the actual number of distinct groups and counts per label. A smaller, honestly reported pilot is preferable to copied or guessed labels.
+
+Use recent Python debugging requests you can reuse, sanitized bug reports or independently authored scenarios. Include requests to diagnose, fix and validate, plus vague follow-ups. Keep all turns, variants and near duplicates from one issue in one split. Draw labels solely from the request as written. An error location can support the evidence label while leaving scope unknown. For example, “Fix only parse_count in parser.py. It returns 1 for an empty string; the expected result is 0.” maps to fix / supporting_details / localized. Group it with every variation of the same issue. Record ID, group ID, source, split, text, reviewer and three labels. Keep hidden tests and reference patches out of classifier inputs.
+
+## Wednesday, November 25 — train and select
+
+- By noon, freeze the taxonomy, split manifest, reviewed labels, training environment and candidate recipe. Audit cross-split overlaps and label coverage. Each prompt contributes three supervised choices. Treat the prompt or issue group as the unit of evidence.
+- Run the untuned quantized Flash 9B on development prompts first. Save per-field logits and option probabilities. Fit a cheap CPU baseline, such as word/character TF-IDF + logistic regression per field, when the training split has adequate class coverage.
+- Train one reproducible QLoRA run. Suggested starting settings: rank 8, alpha 16, learning rate 1e-4, accumulation 8, one seed, up to two epochs, and evaluation/checkpointing at least once per epoch. Choose the supported dtype and max length from Tuesday's measurements. Fix these choices before the run. Save optimizer/scheduler state and a resumable checkpoint while training.
+- Select the adapter by mean development macro-F1 across the three fields, with lower development loss as a tie-breaker; freeze it. Record exact three-field match and confusion counts as diagnostics. Use consistent class sets and report class support. Reserve Thursday morning for one recovery run if the first run failed technically. Record neutral or negative results as measured.
+
+## Thursday, November 26 — finish the work that needs the GPU
+
+- Run matched base and tuned inference on the held-out set once after freezing. Use the same input bytes, option order, tokenizer, quantization, calibration, software, hardware and downstream policy. Save per-example scores, labels, failures, latency and hardware measurements. Summarize changed predictions, macro-F1 per field and exact-match counts. With 20 held-out prompts, one prompt moves exact match by five percentage points.
+- Freeze any SWE-bench issue prompts and scripted multi-turn user messages you intend to use later. Batch-score these prompts with **both** variants before losing GPU access. The current router sees only the current user message, so fixed-message classifications can be reused while running the actual coding agents and executable graders later. Cache by prompt hash, model/adapter revision, taxonomy and serialization version. Preserve runtime configuration and per-field scores. For newly generated or outcome-dependent follow-ups, retain a working inference route or explicitly budget another GPU session.
+- Install or start a clean process with the pinned environment and restore the selected adapter onto its base revision. Run a small fixture through label prediction and the real `select_route` function. Compare predictions to the saved run. Copy the adapter, configuration, tokenizer/helper and base references, code revision, dependency lock, split/data hashes, private labeled data, logs, predictions, metrics and checksum manifest to durable storage accessible from the other computer. Verify the copy. Keep private datasets and model artifacts outside public Git.
+- **Thursday evening finish condition:** recorded base and tuned results, adapter reloaded, routed fixture passed, planned benchmark prompt predictions exported, and a verified copy accessible away from the PC. **Friday morning:** fix only a missing export, reload failure or incomplete inference batch.
+
+## After Friday
+
+Run actual Codex strategies on pinned Python repository tasks, grade patches in isolation, and measure solve rate, regressions, latency and cost per resolved issue including classifier overhead. Applying the frozen policy to cached classifications supports fixed prompt sequences. Each strategy must still execute its own coding trajectory. Record the point where one strategy’s actions cause the next user message to differ. The classifier pilot measures agreement with human labels. The executable benchmarks determine the effect on coding outcomes.
+
+## Paste into Codex on the GPU PC
+
+> I’m resuming the OpenJev training work in AadiBiyani/Adaptive_Coding_Agents. Read this plan, HANDOFF.md, docs/training-plan.md, taxonomy.py, routing.py and classifier_evaluation.py. Inspect my current branch, uncommitted work, any existing private labels, GPU VRAM, system RAM, disk, driver and PyTorch CUDA support. Implement the local training and evaluation path for openjev/OpenJev-Flash-9B with a pinned revision and a separate training environment. Reuse the prompt-only taxonomy, the existing policy and metric definitions. Prepare a separate grouped training dataset for my label review. Keep the original 20 development and 20 held-out examples in their assigned splits. Start with a tiny training-only NF4 LoRA smoke test, including backward, optimizer update, timing, memory, save, reload and routing a fixture. Give me the executable commands, actual peak VRAM and measured ETA on this machine. After I supply reviewed labels, follow the Wednesday and Thursday steps. Keep paid services opt-in and keep private prompts, weights and runs outside public Git.
+
+## Technical references
+
+- [OpenJev Flash 9B model card and readout settings](https://huggingface.co/openjev/OpenJev-Flash-9B)
+- [OpenJev model family](https://huggingface.co/openjev)
+- [NVIDIA RTX 3060 memory configurations](https://www.nvidia.com/en-us/geforce/graphics-cards/30-series/rtx-3060-3060ti/)
+- [Hugging Face guide to training adapters on quantized models](https://huggingface.co/docs/transformers/quantization/finetune)
