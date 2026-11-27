@@ -66,31 +66,62 @@ def export(rows, path):
             writer.writerow({"id": row["id"], "prompt": row["prompt"], **(row.get("labels") or {})})
 
 
+def draft_evidence(entry, labels):
+    if entry.get("taxonomy_version") != TAXONOMY_VERSION:
+        raise ValueError(f"Taxonomy mismatch at {entry['id']}")
+    quotes = {}
+    for field, label in labels.items():
+        quote = entry.get(f"{field}_quote") or ""
+        if label != "unknown" or quote:
+            if not quote.strip() or quote not in entry["prompt"]:
+                raise ValueError(f"Expected a verbatim {field} quote from {entry['id']}")
+            quotes[field] = quote
+    return {"annotation_source": "assistant_prompt_only", "taxonomy_version": TAXONOMY_VERSION,
+            "evidence_quotes": quotes}
+
+
+def pilot_review_id(row):
+    """Opaque sheet ID so the source issue name cannot suggest a label."""
+    return fingerprint([row["split"], row["id"], row["prompt"]])[:12]
+
+
 def record(split, path, reviewer):
     if not reviewer.strip():
         raise ValueError("Supply your reviewer ID")
     target = TRAIN if split == "training" else PILOT
     original = json.loads(target.read_text(encoding="utf-8"))
-    allowed = {r["id"] for r in splits()[split]}
+    selected = splits()[split]
+    allowed = {r["id"] for r in selected}
+    blind_ids = {pilot_review_id(r): r["id"] for r in selected} if split != "training" else {}
     rows = {r["id"]: r for r in original["examples"]}
     changes = 0
     seen = set()
     with path.open(encoding="utf-8-sig", newline="") as stream:
         for entry in csv.DictReader(stream):
-            ident = entry["id"]
+            ident = entry["id"] if "id" in entry else blind_ids.get(entry.get("review_id"))
             if ident in seen or ident not in allowed or entry["prompt"] != rows[ident]["prompt"]:
                 raise ValueError(f"Duplicate, changed, or unexpected review row: {ident}")
             seen.add(ident)
+            provenance = {}
+            if entry.get("annotation_source"):
+                if entry["annotation_source"] != "assistant_prompt_only" or split != "training":
+                    raise ValueError("Assistant drafts are supported only for training prompts")
+                if entry.get("review_status") == "pending_owner_review":
+                    continue
+                if entry.get("review_status") != "human_reviewed":
+                    raise ValueError(f"Unrecognized draft review status at {ident}")
             labels = {f: entry[f].strip() for f in FIELDS}
             if not any(labels.values()):
                 continue
             Labels.from_dict(labels)
+            if entry.get("annotation_source"):
+                provenance = draft_evidence(entry, labels)
             row = rows[ident]
             if reviewed(row):
                 if row["labels"] != labels:
                     raise ValueError(f"Existing annotation differs at {ident}")
                 continue
-            row.update(labels=labels, review={"status": "human_reviewed", "reviewer_id": reviewer,
+            row.update(labels=labels, review={**provenance, "status": "human_reviewed", "reviewer_id": reviewer,
                                              "reviewed_at": datetime.now(timezone.utc).isoformat()})
             changes += 1
     if changes:
@@ -100,13 +131,19 @@ def record(split, path, reviewer):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("audit", "export", "record"))
+    parser.add_argument("command", choices=("audit", "export", "record", "prompt"))
+    parser.add_argument("--id", help="Training row to display for prompt-only annotation")
     parser.add_argument("--split", choices=("training", "development", "held_out"), default="training")
     parser.add_argument("--sheet", type=Path)
     parser.add_argument("--reviewer")
     args = parser.parse_args()
     data = splits()
-    if args.command == "audit":
+    if args.command == "prompt":
+        prompt = next((r["prompt"] for r in data["training"] if r["id"] == args.id), None)
+        if args.split != "training" or prompt is None:
+            parser.error("Supply an active training --id for prompt-only annotation")
+        print(prompt)
+    elif args.command == "audit":
         for split, rows in data.items():
             print(split, len(rows), "prompts,", len({r["group_id"] for r in rows}), "groups,",
                   sum(reviewed(r) for r in rows), "reviewed")

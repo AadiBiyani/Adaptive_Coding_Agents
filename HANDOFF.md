@@ -1,14 +1,51 @@
 # Development handoff
 
-Updated November 25, 2026. README remains the overall project summary with its full architecture diagram. Keep temporary review instructions here.
+Updated November 27, 2026. README remains the overall project summary with its full architecture diagram. Keep temporary review instructions here.
+
+## November 27 Windows-to-Mac handoff
+
+The final CUDA reserve is complete. The reproducible, repository-balanced selection froze 48 SWE-bench Verified issue groups across ten repositories and six controlled scenarios across six repositories. Both CUDA classifiers covered all 48 initial messages and all 12 possible follow-ups, totaling 360 field decisions. Blind verification passed for both batches. The outcome-free receipts and timing records are under `runs/openjev/final-reserve-cache-v1/verification/`. Restrict the final prediction files, comparisons and sealed logs until the development-based sampling and evaluation decisions are recorded. All six public checks passed Python syntax compilation; their behavior still needs isolated validation.
+
+Download both private archives from OneDrive Desktop/Adaptive_Coding_Agents/runs/openjev. A clean-directory Windows restore of both archives verified the payloads, both caches and the frozen adapter's 32 tensors and 1,114,112 parameters. Windows reported both ZIPs and both checksum sidecars in sync. The outcome-free source-side receipt is `runs/openjev/study-1-final-reserve-v1-windows-verification.json`. Mac download, destination verification and E007b native MLX validation remain pending.
+
+| Archive | Bytes | SHA-256 |
+|---|---:|---|
+| `study-1-handoff.zip` | 111,697,797 | `aac19a92a0525c5d356de50d543964da29ca73c312c266e9abd7ea005f44fc2e` |
+| `study-1-final-reserve-v1-supplement.zip` | 4,361,504 | `cac9af90912fd17116ff210c1de6e22cf6cae40430929d26afcc9d02db2c4740` |
+
+The [final reserve handoff](docs/final-reserve-handoff.md) contains the restore commands, Windows selection replay and Mac roadmap. Integrate cache lookup and the isolated grader on the six development issues first. Use development costs and variability to approve a budget, reliability margin, precision target and prefix of 12, 24, 36 or 48 before opening independent outputs. Continue with matched downstream coding, claim-specific ablations, paired statistical analysis and the research paper. Exact frozen messages can use the CUDA caches on the Mac without running either model. Live new prompts need validated local inference or a new authoritative cache.
+
+The owner completed both CUDA cache exports. E007a compared each variant's 20 reloaded development rows with its original report. All 200 candidate logits per variant matched exactly, with 60/60 matching labels and 20/20 matching routes per variant. The reference set also includes the synthetic fixture. The private handoff uses `runs/openjev/study-1-handoff.zip` and a separate `.zip.sha256` receipt. The archive's `handoff/` directory contains the machine-readable replay report, member checksums, Mac dependency lock and wheels, and restore instructions. Use the contract-matching working source at the archive root when restoring the study, including `training/openjev/dataset.py`.
+
+The first archive includes the six development issues and the 21-message portability reference. The supplemental archive supplies the disjoint final reserve. Use only the development and reference panels for Mac implementation work.
+
+## November 26 benchmark prompt freeze
+
+The owner completed the independent 20-prompt held-out comparison with frozen epoch 2. Exact three-label agreement was 17/20 for untuned Flash and 18/20 for tuned Flash. Two routes changed. Both variants agreed with the policy applied to the reviewed labels on 19/20 prompts. The private reports are in `runs/openjev/study-1/held-out/`.
+
+The owner chose a six-issue development pilot across three Python repositories. The private `data/frozen-benchmark-prompts.json` contains six original SWE-bench Verified issue messages and six authored follow-ups. `data/frozen-benchmark-scenarios.json` pins the upstream revision, base commits, selection order and exclusions, message hashes, and visible branch checks for three controlled scenarios. Reserve the six groups and their derivatives from the final downstream test cohort. All 36 formatted questions fit the frozen 512-token limit. The cache fingerprint is `7687cbf0797bb43fe82abb61f15ce94889095e7291493147003c27bd9077190b`.
+
+The matched cache export is complete. Public branch checks still need to be exercised in the isolated task environments. Grader and image digests, budgets, and downstream execution remain open.
 
 ## Local OpenJev work resumed November 25
 
 The owner resumed local Flash 9B classifier work on a Windows RTX 3060 with 12 GiB VRAM. The owner authorized public downloads and a synthetic GPU feasibility check and will operate the research fine-tuning run personally. A formal stakeholder prototype or rubric review remains unverified. Ask before any paid provider or cloud run.
 
-The model, tokenizer and choice helper are pinned to `openjev/OpenJev-Flash-9B` revision `b77b0fff67c77a76c16d4da50a66d2fdbc124fae`. The offline audit found 12 active training prompts across six groups, 20 development prompts and 20 held-out prompts. All annotations await owner review. The original pilot preparation script reproduced the pilot IDs and splits. Private data and review sheets live under ignored `data/`.
+The model, tokenizer and choice helper are pinned to `openjev/OpenJev-Flash-9B` revision `b77b0fff67c77a76c16d4da50a66d2fdbc124fae`. The owner reviewed all 84 active training prompts across 42 issues. The original 12 across six issues have 28 verbatim evidence quotes in `data/review/training-evidence-review.csv`. The owner reviewed the next 72 prompts across six private sheets, `data/review/batches/training-01.csv` through `training-06.csv`, and revised four field labels. All 207 final evidence quotes match the exact prompts. The two previously excluded rows remain excluded. The private `data/review/review-manifest.json` records canonical dataset and review-sheet checksums plus the experiment split hashes.
 
-The owner-operated stages are in `training/openjev/experiment.py`. The synthetic-only step and fresh-process reload are in `training/openjev/smoke.py`. At the source checkpoint, the public snapshot and CUDA package installation are incomplete. GPU fit, throughput, reload agreement, and classifier accuracy remain unmeasured. See the [RTX 3060 plan](OpenJev_3060_Training_Plan.md).
+The owner independently labeled all 20 development and all 20 held-out prompts before seeing predictions. All 40 saved annotations match the owner's review sheets. IDs, issue groups, exact prompts and split assignments match the original pilot preparation script. Each five-row sheet used opaque IDs and five distinct issues. Keep held-out outcomes sealed until the checkpoint is selected on development and frozen.
+
+The pinned tokenizer formatted all 372 prompt–question pairs within the 512-token limit. Maximum lengths were 215 tokens for training, 220 for development and 217 for held-out.
+
+The owner completed the untuned Flash 9B development baseline in `runs/openjev/study-1/base-development.json`. All 20 rows match the reviewed development inputs and all 60 option-score vectors are finite. Correct field counts were 18/20 for task type, 20/20 for cause evidence and 19/20 for change scope. Mean field macro-F1 was 0.9466 and exact three-label agreement was 17/20. The policy produced the same route from predicted and reviewed labels on 19/20 prompts. Scoring took 18.29 seconds across the 20 rows, excluding model loading. The contract's split hashes match the review manifest.
+
+The owner trained a QLoRA adapter on the RTX 3060 for two epochs of 252 field decisions each. Both epochs matched all three labels on 20/20 development prompts and achieved mean field macro-F1 of 1.0000. The development loss tiebreak selected epoch 2 (0.00446 versus 0.02677 for epoch 1). The epoch 2 adapter and configuration checksums match `runs/openjev/study-1/freeze.json`. Relative to the untuned baseline, the frozen adapter corrected two task types and one scope. One correction changed the selected model from Luna to Sol at high effort. The other 19 routes stayed the same. SWE-bench outcomes and cost per resolved issue remain unmeasured.
+
+The owner completed synthetic run `smoke-20261125-113447` with PyTorch 2.13.0+cu130. The saved reports record 32 changed adapter tensors, 7,870 MiB peak reserved GPU memory, 12 timed field decisions in 15.85 seconds, and zero maximum logit difference on a fresh-process reload. Both synthetic predictions selected `luna-low`.
+
+Use the [GPU-to-Mac checklist](docs/gpu-to-mac.md) for the OneDrive restore rehearsal, package snapshot, owner-operated training stages, matched prompt exports, and final archive verification. The independent file reader passed on the original PC adapter. OneDrive retrieval and native MLX inference still need verification on the Mac. The [RTX 3060 plan](OpenJev_3060_Training_Plan.md) records the experiment design.
+
+The pre-training Windows snapshot is in ignored `runs/openjev/environment-study-1/`. It captures Python 3.12.16, the installed packages and CUDA wheel, runtime and driver details, the Git revision, and the working source including the uncommitted Mac checker and documentation. Its manifest records checksums. The owner confirmed visibility in OneDrive from the Mac and plans to test the Mac implementation after training. The research baseline will record its own source revision.
 
 ## November 9 demo checkpoint (historical)
 
@@ -50,7 +87,7 @@ Software-check selection, Run/Stop controls, test history, and local-test result
 
 The renamed **Evaluation** page explains the classifier pilot and provides its review/results flow. It is a foundation for later SWE-bench task/strategy analysis, not an implementation of the isolated evaluator.
 
-**40-prompt Jev pilot:** the Evaluation page exposes the existing 20-development/20-held-out authored diagnostic dataset. `classifier_pilot.py` manages review and confirmed browser jobs; `classifier_evaluation.py` remains the shared CLI/browser evaluator. The frontend shows one prompt with the fixed category definitions, accepts only owner-reviewed labels, and never fills in gold labels from model predictions. Existing dataset content remains unchanged by this implementation; all 40 labels were pending at the last inspection. These prompts are not coding exercises sent to GPT and are not fine-tuning data automatically.
+**40-prompt Jev pilot.** The Evaluation page exposes the 20-development/20-held-out authored diagnostic dataset. `classifier_pilot.py` manages review and confirmed browser jobs. `classifier_evaluation.py` remains the shared CLI/browser evaluator. The frontend shows one prompt with the fixed category definitions and accepts owner-reviewed labels. The November 25 offline review supplied all 40 labels. The prompts serve as classifier evaluation inputs.
 
 The owner previews one split's costs, then explicitly confirms. The confirmation shows Jev requests and zero OpenAI calls: this cohort evaluates classification, not executable coding tasks. The current conservative admission estimate is $0.02 for 20 prompts ($0.04 across both splits), not a guaranteed bill. The existing shared caps and attempt limits are rechecked without increasing/resetting them. Short-lived confirmations bind the exact split, reviewed labels, questions, requested classifier, and development freeze; changed inputs require a new preview. Duplicate submissions cannot repeat a batch. Cancellation lets an in-flight request finish accounting and stops before the next prompt. Coding and local checks cannot overlap a classifier batch.
 
@@ -81,7 +118,7 @@ The reviewed shared allocation remains **$0.05 Jev and $2 OpenAI**. On October 3
 
 The recorded remaining admission amounts are **$0.049922258 Jev and $1.97738875 OpenAI**; the classifier experiment has used zero of its 40 requests. These are ledger estimates, not actual account balances or bills. Shared caps, reservations, and uncertainty can stop work before a chat uses all ten turns. Opening a new chat never refills money or experiment requests. The migration made no provider calls. Do not reset/increase the ledger or treat available credits as authorization. Cumulative cloud/non-OpenAI cash spending must remain below $50 unless separately reviewed.
 
-The classifier pilot has 20 development and 20 held-out authored prompts under ignored `data/classifier-pilot.json`. Labels remain unreviewed; no accuracy batch has run. `GROUPS` is split/group metadata, not a lookup from problems to executable tests. Human annotations must use only the current prompt. Held-out evaluation requires the frozen development report; no predictions may become their own gold labels.
+The classifier pilot has 20 development and 20 held-out authored prompts under ignored `data/classifier-pilot.json`. The owner has reviewed all 40. The hosted Jev pilot still awaits scoring. `GROUPS` records the pilot's split and issue assignments. Human annotations use only the current prompt. Held-out evaluation requires the development freeze.
 
 The primary future study remains fine-tuned versus untuned OpenJev with matched base checkpoint, taxonomy, downstream policy, harness, and evaluation conditions. Hosted Jev is a distinct comparison. Keep fixed, rule-based, and cheap learned controls; independent executable SWE-bench checks; controlled multi-turn analysis; grouped splits; cost/uncertainty reporting; and stakeholder review. No training, routing-quality, savings, novelty, or course-completion result has been established.
 
